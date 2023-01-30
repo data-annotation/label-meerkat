@@ -25,7 +25,6 @@ embeddings = model.encode(sentences)
 
 # encoders._obj_map['transformers'] = transformers
 
-
 router = APIRouter(
     prefix="/file",
     tags=["file"],
@@ -111,14 +110,18 @@ def upload_file_and_process(files: List[UploadFile], response: Response):
     #     out_col='embed',
     #     batch_size=32,
     # )
-    df.write(f"processed-{uuid.uuid4().hex}.mk")
+    save_processed_file_name = f"processed-{uuid.uuid4().hex}.mk"
+    df.write(save_processed_file_name)
 
-    return res
+    return {'res': res,
+            'saved_file': save_processed_file_name}
 
 
 @router.post("/data/match")
 def upload_file_and_process(data: str, search_words, response: Response):
-    """search the best match sentence in processed data by search_words"""
+    """search the best match sentence in processed data by search_words
+
+    """
     df = mk.read(f'{data}.mk')
     kw_embed = model.encode(search_words)
     df['scores'] = df['embed'].map(
