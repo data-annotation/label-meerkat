@@ -15,6 +15,7 @@ from sentence_splitter import SentenceSplitter
 import meerkat as mk
 # from meerkat.ops.embed import transformers
 # from meerkat.ops.embed.registry import encoders
+import sqlite3
 
 from sentence_transformers import SentenceTransformer
 
