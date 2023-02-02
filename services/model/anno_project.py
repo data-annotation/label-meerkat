@@ -4,52 +4,63 @@ from sqlalchemy import String
 from sqlalchemy import Table
 from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
-
-from sqlalchemy.ext.declarative import declarative_base
-
-Base = declarative_base()
-
-
-#  = Table(
-#     "author_publisher",
-#     Base.metadata,
-#     Column("author_id", Integer, ForeignKey("author.author_id")),
-#     Column("publisher_id", Integer, ForeignKey("publisher.publisher_id")),
-# )
+from sqlalchemy import MetaData
+from sqlalchemy import Sequence
+from sqlalchemy import Index
+from sqlalchemy import func
 
 
 
-# author_publisher = Table(
-#     "author_publisher",
-#     Base.metadata,
-#     Column("author_id", Integer, ForeignKey("author.author_id")),
-#     Column("publisher_id", Integer, ForeignKey("publisher.publisher_id")),
-# )
-
-class Project(Base):
-    __tablename__ = "project"
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    create_time = Column(DateTime)
-    update_time = Column(DateTime)
-    user_id = Column(Integer, ForeignKey("user.id"))
+metadata_obj = MetaData()
 
 
-class User(Base):
-    __tablename__ = "user"
-    id = Column(Integer, primary_key=True)
-    name = Column(String)
-    create_time = Column(DateTime)
-    update_time = Column(DateTime)
-    token = Column(String)
+project = Table(
+    "project",
+    metadata_obj,
+    Column("id", Integer, Sequence("project_id_seq"), primary_key=True),
+    Column("name", String, index=True, unique=True, nullable=False),
+    Column("create_time", DateTime(timezone=True), server_default=func.now()),
+    Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
+    Column("user_id", Integer, ForeignKey("user.id"), nullable=False),
+    Column("file_path", String, index=True, unique=True, nullable=False)
+)
 
 
-class Label(Base):
-    __tablename__ = "label"
-    id = Column(Integer, primary_key=True)
-    version = Column(String)
-    user_id = Column(Integer, ForeignKey("user.id"))
-    project_id = Column(Integer, ForeignKey("project.id"))
-    create_time = Column(DateTime)
-    update_time = Column(DateTime)
+user = Table(
+    "user",
+    metadata_obj,
+    Column("id", Integer, Sequence("user_id_seq"), primary_key=True),
+    Column("name", String, index=True, unique=True, nullable=False),
+    Column("create_time", DateTime(timezone=True), server_default=func.now()),
+    Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
+    Column("token", String),
+)
 
+
+label = Table(
+    "label",
+    metadata_obj,
+    Column("id", Integer, Sequence("label_id_seq"), primary_key=True),
+    Column("name", String, nullable=False),
+    Column("create_time", DateTime(timezone=True), server_default=func.now()),
+    Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
+    Column("user_id", Integer, ForeignKey("user.id"), nullable=False),
+    Column("project_id", Integer, ForeignKey("project.id"), nullable=False),
+    Column("file_path", String, index=True, unique=True, nullable=False)
+)
+
+Index("ux_label_name_user_id", label.c.name, label.c.user_id, unique=True)
+
+if __name__ == "__main__":
+    from sqlalchemy import create_engine
+    engine = create_engine("sqlite:///test.db", echo=True)
+    metadata_obj.create_all(engine)
+    # ins = user.insert().values(name="jack", token="Jack Jones")
+    # ins = project.insert().values(name="faire_tale_label", user_id=1, file_path="abc")
+    # ins = label.insert().values(name="jack label", project_id=1, file_path="abc")
+    conn = engine.connect()
+    conn.execute(user.insert(), {"name": "jack", "token": "Wendy Williams"})
+    conn.execute(project.insert(), {"name": "faire_tale_label", "user_id": 2,"file_path": "foo"})
+    conn.execute(label.insert(), {"name": "jack label", "project_id": 3, "user_id": 2, "file_path": "foo"})
+    # conn.execute(ins)
+    
