@@ -9,10 +9,7 @@ from sqlalchemy import Sequence
 from sqlalchemy import Index
 from sqlalchemy import func
 
-
-
 metadata_obj = MetaData()
-
 
 project = Table(
     "project",
@@ -25,7 +22,6 @@ project = Table(
     Column("file_path", String, index=True, unique=True, nullable=False)
 )
 
-
 user = Table(
     "user",
     metadata_obj,
@@ -33,9 +29,8 @@ user = Table(
     Column("name", String, index=True, unique=True, nullable=False),
     Column("create_time", DateTime(timezone=True), server_default=func.now()),
     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
-    Column("token", String),
+    Column("token", String, index=True, unique=True, nullable=False),
 )
-
 
 label = Table(
     "label",
@@ -53,14 +48,15 @@ Index("ux_label_name_user_id", label.c.name, label.c.user_id, unique=True)
 
 if __name__ == "__main__":
     from sqlalchemy import create_engine
+
     engine = create_engine("sqlite:///test.db", echo=True)
     metadata_obj.create_all(engine)
     # ins = user.insert().values(name="jack", token="Jack Jones")
     # ins = project.insert().values(name="faire_tale_label", user_id=1, file_path="abc")
     # ins = label.insert().values(name="jack label", project_id=1, file_path="abc")
     conn = engine.connect()
-    conn.execute(user.insert(), {"name": "jack", "token": "Wendy Williams"})
-    conn.execute(project.insert(), {"name": "faire_tale_label", "user_id": 2,"file_path": "foo"})
-    conn.execute(label.insert(), {"name": "jack label", "project_id": 3, "user_id": 2, "file_path": "foo"})
+    conn.execute(user.insert(), {"name": "jack", "token": "password"})
+    # conn.execute(project.insert(), {"name": "faire_tale_label", "user_id": 2, "file_path": "foo"})
+    # conn.execute(label.insert(), {"name": "jack label", "project_id": 3, "user_id": 2, "file_path": "foo"})
     # conn.execute(ins)
-    
+
