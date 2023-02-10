@@ -5,6 +5,7 @@ import uuid
 from enum import Enum
 from typing import List
 from typing import Union
+import zipfile
 
 import numpy as np
 import pandas as pd
@@ -58,6 +59,30 @@ def dataframe_process(df: pd.DataFrame):
         res.extend(text_to_sentence(row.content, row.title))
     return res
 
+def zip_process(file: UploadFile):
+    zfile = zipfile.ZipFile(io.BytesIO(file.file.read()))
+    zfile.extractall('zipf/')
+    filepath = 'zipf/'
+    return filepath_process(filepath)
+
+def filepath_process(filepath):
+    for item in os.listdir(filepath):
+        if os.path.isdir(item):
+            filepath_process(filepath + '/' + item)
+        elif item.endswith('txt'):
+            with open(filepath + item, 'r') as f:
+                res = text_to_sentence(f.read())
+        elif item.endswith('csv'):
+            with open(filepath + item, 'r') as f:
+                res = dataframe_process(pd.read_csv(io.BytesIO(f.read())))
+        elif item.endswith('xlsx'):
+            with open(filepath + item, 'r') as f:
+                res = dataframe_process(pd.read_excel(f.read()))
+        elif item.endswith('json'):
+            with open(filepath + item, 'r') as f:
+                for text in json.load(f):
+                    dataframe_process(text['content', text['title']])
+    return res
 
 def calc_cosine_distance(a: np.array, b: np.array):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
@@ -94,6 +119,10 @@ def upload_file_and_process(files: List[UploadFile],
             elif file.filename.endswith('json'):
                 for text in json.load(file.file):
                     res.extend(dataframe_process(text['content', text['title']]))
+            elif file.filename.endswith('zip') or file.filename.endswith('rar'):
+                res.extend(zip_process(file))
+
+
     except Exception as e:
         # raise e
         response.status_code = 400
