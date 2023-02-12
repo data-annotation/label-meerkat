@@ -15,12 +15,12 @@ metadata_obj = MetaData()
 project = Table(
     "project",
     metadata_obj,
-    Column("id", Integer, Sequence("project_id_seq"), primary_key=True),
-    Column("name", String, index=True, unique=True, nullable=False),
+    Column("id", Integer, Sequence("project_id_seq"), primary_key=True, comment="annoation project id"),
+    Column("name", String, index=True, unique=True, nullable=False, comment="project name"),
     Column("create_time", DateTime(timezone=True), server_default=func.now()),
     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
     Column("user_id", Integer, ForeignKey("user.id"), nullable=False),
-    Column("file_path", String, index=True, unique=True, nullable=False)
+    Column("file_path", String, index=True, unique=True, nullable=False, comment="project data file path")
 )
 
 user = Table(
@@ -30,7 +30,7 @@ user = Table(
     Column("name", String, index=True, unique=True, nullable=False),
     Column("create_time", DateTime(timezone=True), server_default=func.now()),
     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
-    Column("token", String, index=True, unique=True, nullable=False),
+    Column("token", String, index=True, unique=True, nullable=False, comment="identify the user"),
 )
 
 
@@ -43,6 +43,7 @@ label_result = Table(
     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
     Column("user_id", Integer, ForeignKey("user.id"), nullable=False),
     Column("project_id", Integer, ForeignKey("project.id"), nullable=False),
+    Column("iteration", JSON, ),
     Column("file_path", String, index=True, unique=True, nullable=False)
 )
 

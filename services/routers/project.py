@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from sqlalchemy import select
 
 import meerkat as mk
-from services.model.anno_project import project
+from services.orm.anno_project import project
 from . import engine
 
 router = APIRouter(
