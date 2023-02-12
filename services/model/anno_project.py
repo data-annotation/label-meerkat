@@ -2,6 +2,7 @@ from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Table
+from sqlalchemy import JSON
 from sqlalchemy import DateTime
 from sqlalchemy import ForeignKey
 from sqlalchemy import MetaData
@@ -32,8 +33,9 @@ user = Table(
     Column("token", String, index=True, unique=True, nullable=False),
 )
 
-label = Table(
-    "label",
+
+label_result = Table(
+    "label_result",
     metadata_obj,
     Column("id", Integer, Sequence("label_id_seq"), primary_key=True),
     Column("name", String, nullable=False),
@@ -44,7 +46,22 @@ label = Table(
     Column("file_path", String, index=True, unique=True, nullable=False)
 )
 
-Index("ux_label_name_user_id", label.c.name, label.c.user_id, unique=True)
+
+label_config = Table(
+    "label_config",
+    metadata_obj,
+    Column("id", Integer, Sequence("label_id_seq"), primary_key=True),
+    Column("name", String, nullable=False),
+    Column("user_id", String, nullable=False),
+    Column("project_id", Integer, ForeignKey("project.id"), nullable=False), 
+    Column("extra", JSON, server_default=func.now()),
+    Column("create_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
+    Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+)
+
+
+Index("ux_label_name_user_id", label_result.c.name, label_result.c.user_id, unique=True)
+
 
 if __name__ == "__main__":
     from sqlalchemy import create_engine
