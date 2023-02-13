@@ -37,31 +37,32 @@ user = Table(
 label_result = Table(
     "label_result",
     metadata_obj,
-    Column("id", Integer, Sequence("label_id_seq"), primary_key=True),
+    Column("id", Integer, Sequence("label_id_seq"), index=True, primary_key=True),
     Column("name", String, nullable=False),
     Column("create_time", DateTime(timezone=True), server_default=func.now()),
     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
     Column("user_id", Integer, ForeignKey("user.id"), nullable=False),
     Column("project_id", Integer, ForeignKey("project.id"), nullable=False),
-    Column("iteration", JSON, ),
-    Column("file_path", String, index=True, unique=True, nullable=False)
+    Column("config", JSON, nullable=False),
+    Column("iteration", JSON),
+    Column("file_path", String,  unique=True, nullable=False)
 )
 
 
-label_config = Table(
-    "label_config",
-    metadata_obj,
-    Column("id", Integer, Sequence("label_id_seq"), primary_key=True),
-    Column("name", String, nullable=False),
-    Column("user_id", String, nullable=False),
-    Column("project_id", Integer, ForeignKey("project.id"), nullable=False), 
-    Column("extra", JSON, server_default=func.now()),
-    Column("create_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
-    Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-)
+# label_config = Table(
+#     "label_config",
+#     metadata_obj,
+#     Column("id", Integer, Sequence("label_config_id_seq"), primary_key=True),
+#     Column("name", String, nullable=False),
+#     Column("user_id", String, nullable=False),
+#     Column("project_id", Integer, ForeignKey("project.id"), nullable=False),
+#     Column("extra", JSON, server_default=func.now()),
+#     Column("create_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
+#     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+# )
 
 
-Index("ux_label_name_user_id", label_result.c.name, label_result.c.user_id, unique=True)
+Index("ux_label_result_name_user_id", label_result.c.name, label_result.c.user_id, unique=True)
 
 
 if __name__ == "__main__":
@@ -73,8 +74,16 @@ if __name__ == "__main__":
     # ins = project.insert().values(name="faire_tale_label", user_id=1, file_path="abc")
     # ins = label.insert().values(name="jack label", project_id=1, file_path="abc")
     conn = engine.connect()
-    conn.execute(user.insert(), {"name": "jack", "token": "password"})
-    # conn.execute(project.insert(), {"name": "faire_tale_label", "user_id": 2, "file_path": "foo"})
-    # conn.execute(label.insert(), {"name": "jack label", "project_id": 3, "user_id": 2, "file_path": "foo"})
+    conn.execute(user.insert(),
+                 {"name": "jack", "token": "password"})
+    conn.execute(project.insert(),
+                 {"name": "faire_tale_label", "user_id": 2, "file_path": "foo"})
+    conn.execute(label_result.insert(),
+                 {"name": "jack label",
+                  "project_id": 3,
+                  "user_id": 2,
+                  "config": {'ok': 'yes'},
+                  "iteration": {'ok': 'yes'},
+                  "file_path": "foo"})
     # conn.execute(ins)
 

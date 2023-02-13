@@ -43,8 +43,8 @@ def text_to_sentence(text: Union[str, bytes], name: str = None):
                   for i in text.split('\n')
                   if i.strip('\n\t').strip() != '']
     res = []
-    for p_idex, paragraph in enumerate(paragraphs):
-        res.extend([{'paragraph': p_idex,
+    for p_index, paragraph in enumerate(paragraphs):
+        res.extend([{'paragraph': p_index,
                      'index': idx,
                      'sentence': sentence,
                      **({'name': name}
@@ -59,11 +59,13 @@ def dataframe_process(df: pd.DataFrame):
         res.extend(text_to_sentence(row.content, row.title))
     return res
 
+
 def zip_process(file: UploadFile):
     zfile = zipfile.ZipFile(io.BytesIO(file.file.read()))
     zfile.extractall('zipf/')
     filepath = 'zipf/'
     return filepath_process(filepath)
+
 
 def filepath_process(filepath):
     for item in os.listdir(filepath):
@@ -71,10 +73,10 @@ def filepath_process(filepath):
             filepath_process(filepath + '/' + item)
         elif item.endswith('txt'):
             with open(filepath + item, 'r') as f:
-                res = text_to_sentence(f.read())
+                res = text_to_sentence(f.read(), item[:-5])
         elif item.endswith('csv'):
-            with open(filepath + item, 'r') as f:
-                res = dataframe_process(pd.read_csv(io.BytesIO(f.read())))
+            with open(filepath + item, 'rb') as f:
+                res = dataframe_process(pd.read_csv(f))
         elif item.endswith('xlsx'):
             with open(filepath + item, 'r') as f:
                 res = dataframe_process(pd.read_excel(f.read()))
@@ -83,6 +85,7 @@ def filepath_process(filepath):
                 for text in json.load(f):
                     dataframe_process(text['content', text['title']])
     return res
+
 
 def calc_cosine_distance(a: np.array, b: np.array):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
