@@ -1,8 +1,17 @@
+import os.path
+import uuid
+from typing import Union
+
 from fastapi import APIRouter
 from sqlalchemy import select
 
 from services.orm.anno_project import label_result
 from . import engine
+from pydantic import BaseModel
+from meerkat import dataframe as mk_df
+from ..config import label_base_path
+from ..orm.anno_project import user
+
 
 router = APIRouter(
     prefix="/labels",
@@ -11,18 +20,111 @@ router = APIRouter(
 )
 
 
+"""
+single sentence
+{
+  'sentence_column': 'abc',
+  'id_column': 'id',
+  'explanation_column': 'explanation'
+  'label_choice': ['rose', 'jack']
+}
+
+{
+  'sentence_column': 'abc',
+  'id_column': 'id',
+  'explanation_column': 'explanation'
+  'label_choice': {'type1': ['ture', 'false', 'unknown'],
+                   'type2': ['ture', 'false', 'unknown']}
+}
+
+sentence relation
+{ 
+  'id_1_column': 'id_1',
+  'id_2_column': 'id_2',
+  'sentence_column_1': 'column_name_1',
+  'sentence_column_2': 'column_name_2'
+  'label_choice': ['rose', 'jack'],
+  'explanation_column': 'explanation'
+}
+
+"""
+
+
+class SingleSentence1(BaseModel):
+  config_type: str = 'single_sentence_1'
+  label_column: str
+  label_choice: list
+  explanation_column: str
+  id_column: str = 'id'
+
+
+class SingleSentence2(SingleSentence1):
+  config_type: str = 'single_sentence_1'
+  label_choice: dict
+
+
+class SentenceRelation(BaseModel):
+  config_type: str = 'sentence_relation'
+  id_1_column: str
+  id_2_column: str
+  sentence_column_1: str
+  sentence_column_2: str
+  label_choice: list
+  explanation_column: str
+
+
 @router.post("/")
-def create_label(project_id: int, name: str, config_data: dict, label_data: dict):
+def create_label(project_id: int,
+                 name: str,
+                 config_data: Union[SingleSentence1, SingleSentence2, SentenceRelation, dict],
+                 token: str,
+                 label_data: list):
   """
   create a new label for a project
 
   """
   conn = engine.connect()
+  user_res = conn.execute(select(user.c.id).where(user.c.token == token)).fetchone()
+  label_res_uuid = uuid.uuid4().hex
+  model_uuid = uuid.uuid4().hex
   conn.execute(label_result.insert(),
                {"project_id": project_id,
                 "name": name,
-                "config": config_data,
-                "iteration": label_data})
+                "user_id": user_res[0],
+                "file_path": label_res_uuid,
+                "config": config_data.dict(),
+                "iteration": [{'epoch': 1, 'model': model_uuid}]})
+  label_result_df = mk_df.DataFrame(label_data)
+  label_result_df.write(os.path.join(label_base_path, f'{label_res_uuid}.mk'))
+
+  return True
+
+
+
+@router.post("/trigger")
+def one_iteration(project_id: int,
+                  name: str,
+                  config_data: Union[SingleSentence1, SingleSentence2, SentenceRelation, dict],
+                  token: str,
+                  label_data: list):
+  """
+  trigger one iteration
+
+  """
+  # conn = engine.connect()
+  # user_res = conn.execute(select(user.c.id).where(user.c.token == token)).fetchone()
+  # label_res_uuid = uuid.uuid4().hex
+  # model_uuid = uuid.uuid4().hex
+  # conn.execute(label_result.insert(),
+  #              {"project_id": project_id,
+  #               "name": name,
+  #               "user_id": user_res[0],
+  #               "file_path": label_res_uuid,
+  #               "config": config_data.dict(),
+  #               "iteration": [{'epoch': 1, 'model': model_uuid}]})
+  # label_result_df = mk_df.DataFrame(label_data)
+  # label_result_df.write(os.path.join(label_base_path, f'{label_res_uuid}.mk'))
+
   return True
 
 

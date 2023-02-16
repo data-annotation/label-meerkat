@@ -17,6 +17,8 @@ from transformers import (
   set_seed,
 )
 
+from services.model import device
+
 
 logger = logging.getLogger(__name__)
 
@@ -189,6 +191,55 @@ def finetune(config_json):
 
   return results
 
-# def _mp_fn(index):
-#     # For xla_spawn (TPUs)
-#     main()
+
+def predict(test_dataset, model_name, model_path, flag, iteration):
+  model = T5ForConditionalGeneration.from_pretrained(model_path).to(device)
+  tokenizer = T5Tokenizer.from_pretrained(model_path)
+
+  # os.makedirs(TEMP_FOLDER_PATH + 'rationale_model_' + str(index) )
+  # os.makedirs(TEMP_FOLDER_PATH + 'prediction_model_' + str(index) )
+  # shutil.rmtree(TEMP_FOLDER_PATH+'rationale_model_'+str(index))
+  # shutil.rmtree(TEMP_FOLDER_PATH+'prediction_model_'+str(index))
+  '''
+  ## CLEANING CODE
+
+  shutil.rmtree(model_path)
+
+  if not os.path.exists(model_path):
+    os.makedirs(model_path)
+
+  model.save_pretrained(model_path) 
+  ##tokenizer.save_pretrained(model_path)
+  print(" - successfully clean model saving folder")
+  '''
+  dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=32)
+
+  answers = []
+  for batch in tqdm(dataloader):
+    outs = model.generate(input_ids=batch['input_ids'].to(device),
+                          attention_mask=batch['attention_mask'].to(device),
+                          max_length=64,
+                          early_stopping=True)
+    outs = [tokenizer.decode(ids, skip_special_tokens=True).encode('utf-8').decode('utf-8') for ids in outs]
+    answers.extend(outs)
+
+  predictions = []
+  references = []
+  for ref, pred in zip(test_dataset, answers):
+    predictions.append(pred)
+    # references.append(ref['answer'])
+
+    references.append(tokenizer.decode(ref['target_ids'], skip_special_tokens=True))
+
+  print("1st predicted:", predictions[0])
+  print("1st groundtruth:", references[0])
+  assert len(predictions) == len(references)
+  # print(len(predictions), len(references))
+
+  if model_name == 'prediction':
+    prediction_model_accuracy(predictions, references, flag, iteration)
+  ##elif model_name == 'rationale':
+  ##  rationale_model_accuracy(predictions, references)
+
+
+  return predictions

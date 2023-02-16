@@ -1,6 +1,6 @@
 import torch
+from sentence_transformers import SentenceTransformer
 from transformers import T5Tokenizer
-from sentence_transformers import SentenceTransformer, util
 
 from services.config import SentenceTransformer_PATH
 

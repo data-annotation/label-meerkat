@@ -3,7 +3,7 @@ from tqdm.auto import tqdm
 from transformers import T5ForConditionalGeneration
 from transformers import T5Tokenizer
 
-from services.config import device
+from services.model import device
 
 
 def prediction_model_accuracy(predictions, references, flag, iteration):

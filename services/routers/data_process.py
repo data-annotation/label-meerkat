@@ -132,6 +132,7 @@ def upload_file_and_process(files: List[UploadFile],
         return 'Process data error, please check data content'
 
     df = mk.DataFrame(res)
+    df.create_primary_key("id")
     df['embed'] = model.encode(df['sentence'].to_list())
     project_name = name or uuid.uuid4().hex
     save_processed_file_name = f"{project_name}.mk"
