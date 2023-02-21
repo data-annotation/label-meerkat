@@ -10,6 +10,7 @@ from . import engine
 from pydantic import BaseModel
 from meerkat import dataframe as mk_df
 from ..config import label_base_path
+from ..model.AL import one_iter
 from ..orm.anno_project import user
 
 
@@ -87,26 +88,23 @@ def create_label(project_id: int,
   user_res = conn.execute(select(user.c.id).where(user.c.token == token)).fetchone()
   label_res_uuid = uuid.uuid4().hex
   model_uuid = uuid.uuid4().hex
-  conn.execute(label_result.insert(),
-               {"project_id": project_id,
-                "name": name,
-                "user_id": user_res[0],
-                "file_path": label_res_uuid,
-                "config": config_data.dict(),
-                "iteration": [{'epoch': 1, 'model': model_uuid}]})
-  label_result_df = mk_df.DataFrame(label_data)
-  label_result_df.write(os.path.join(label_base_path, f'{label_res_uuid}.mk'))
+  # conn.execute(label_result.insert(),
+  #              {"project_id": project_id,
+  #               "name": name,
+  #               "user_id": user_res[0],
+  #               "file_path": label_res_uuid,
+  #               "config": config_data.dict(),
+  #               "iteration": [{'epoch': 1, 'model': model_uuid}]})
+  # label_result_df = mk_df.DataFrame(label_data)
+  # label_result_df.write(os.path.join(label_base_path, f'{label_res_uuid}.mk'))
+  one_iter(label_data)
 
   return True
 
 
 
 @router.post("/trigger")
-def one_iteration(project_id: int,
-                  name: str,
-                  config_data: Union[SingleSentence1, SingleSentence2, SentenceRelation, dict],
-                  token: str,
-                  label_data: list):
+def one_iteration(label_data: Union[list, dict]):
   """
   trigger one iteration
 
@@ -124,6 +122,7 @@ def one_iteration(project_id: int,
   #               "iteration": [{'epoch': 1, 'model': model_uuid}]})
   # label_result_df = mk_df.DataFrame(label_data)
   # label_result_df.write(os.path.join(label_base_path, f'{label_res_uuid}.mk'))
+  one_iter(label_data)
 
   return True
 

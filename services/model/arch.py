@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 import torch
+from tqdm import tqdm
 
 from transformers import T5ForConditionalGeneration, T5Tokenizer, EvalPrediction
 from transformers import (
@@ -168,6 +169,9 @@ def finetune(config_json):
         model_path=model_args.model_name_or_path if os.path.isdir(model_args.model_name_or_path) else None
     )
     trainer.save_model()
+    # state_dict = trainer.model.state_dict()
+    # torch.save(state_dict, training_args.output_dir)
+
     # For convenience, we also re-save the tokenizer to the same directory,
     # so that you can share your model easily on huggingface.co/models =)
     if trainer.is_world_process_zero():
@@ -234,12 +238,5 @@ def predict(test_dataset, model_name, model_path, flag, iteration):
   print("1st predicted:", predictions[0])
   print("1st groundtruth:", references[0])
   assert len(predictions) == len(references)
-  # print(len(predictions), len(references))
-
-  if model_name == 'prediction':
-    prediction_model_accuracy(predictions, references, flag, iteration)
-  ##elif model_name == 'rationale':
-  ##  rationale_model_accuracy(predictions, references)
-
 
   return predictions
