@@ -91,11 +91,13 @@ def calc_cosine_distance(a: np.array, b: np.array):
     return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
 
-@router.post("/data/process")
+@router.post("/")
 def upload_file_and_process(files: List[UploadFile],
                             response: Response,
                             token: str = None,
-                            name: str = None):
+                            name: str = None,
+                            processed: bool = False,
+                            config: dict = None):
     """upload multi files by user
     file type supported is txt,json,csv,xlsx
 
@@ -110,26 +112,36 @@ def upload_file_and_process(files: List[UploadFile],
     [{'title': 'Rapunzel', 'content': 'foo bar ....'}]
 
     """
-    res = []
     try:
-        for file in files:
-            if file.filename.endswith('.txt'):
-                res.extend(text_to_sentence(file.file.read(), file.filename[:-5]))
-            elif file.filename.endswith('.csv'):
-                res.extend(dataframe_process(pd.read_csv(io.BytesIO(file.file.read()))))
-            elif file.filename.endswith('xlsx'):
-                res.extend(dataframe_process(pd.read_excel(file.file.read())))
-            elif file.filename.endswith('json'):
-                for text in json.load(file.file):
-                    res.extend(dataframe_process(text['content', text['title']]))
-            elif file.filename.endswith('zip') or file.filename.endswith('rar'):
-                res.extend(zip_process(file))
-
-
+        if processed:
+            breakpoint()
+            res = pd.DataFrame(columns=config['columns'])
+            for file in files:
+                if file.filename.endswith('.csv'):
+                    res.concat(pd.read_csv(io.BytesIO(file.file.read())))
+                elif file.filename.endswith('xlsx'):
+                    res.concat(pd.read_excel(file.file.read()))
+                elif file.filename.endswith('json'):
+                    for text in json.load(file.file):
+                        res.concat(pd.DataFrame(text))
+        else:
+            res = []
+            for file in files:
+                if file.filename.endswith('.txt'):
+                    res.extend(text_to_sentence(file.file.read(), file.filename[:-5]))
+                elif file.filename.endswith('.csv'):
+                    res.extend(dataframe_process(pd.read_csv(io.BytesIO(file.file.read()))))
+                elif file.filename.endswith('xlsx'):
+                    res.extend(dataframe_process(pd.read_excel(file.file.read())))
+                elif file.filename.endswith('json'):
+                    for text in json.load(file.file):
+                        res.extend(dataframe_process(text['content', text['title']]))
+                elif file.filename.endswith('zip') or file.filename.endswith('rar'):
+                    res.extend(zip_process(file))
     except Exception as e:
-        # raise e
-        response.status_code = 400
-        return 'Process data error, please check data content'
+        raise e
+        # response.status_code = 400
+        # return 'Process data error, please check data content'
 
     df = mk.DataFrame(res)
     df.create_primary_key("id")

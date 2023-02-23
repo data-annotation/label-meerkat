@@ -25,7 +25,7 @@ base_model = 'valhalla/t5-small-qa-qg-hl'
 
 num_iter = 1
 num_data_per_batch = 10
-num_epochs_rg = 2
-num_epochs_p = 2
+num_epochs_rg = 20
+num_epochs_p = 20
 learning_rate = 1e-4
-per_device_batch_size = 2
+per_device_batch_size = 10

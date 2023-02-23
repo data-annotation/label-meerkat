@@ -1,4 +1,5 @@
 import os.path
+from typing import Union
 
 import torch
 from datasets import Dataset
@@ -18,7 +19,7 @@ from services.model.util.model_input import prediction_model_preprocessing
 from services.model.util.model_input import rationale_model_preprocessing
 
 
-def one_iter(labeled_data: [list, dict],
+def one_iter(labeled_data: Union[list, dict],
              last_model: str = None,
              model_id: str = None,
              curr_iter: int = 0):
@@ -42,9 +43,9 @@ def one_iter(labeled_data: [list, dict],
     "tokenizer_name": base_model if curr_iter == 0 else rationale_model_path,
     "max_len": 512,
     "target_max_len": 64,
-    "train_file_path": 'rationale_model_data/train_data.pt',
-    "valid_file_path": 'rationale_model_data/valid_data.pt',
-    "output_dir": 'rationale_model/',
+    "train_file_path": rationale_model_train_file_path,
+    "valid_file_path": rationale_model_valid_file_path,
+    "output_dir": os.path.join(rationale_model_path, str(curr_iter)),
     "overwrite_output_dir": True,
     "per_device_train_batch_size": per_device_batch_size,
     "per_device_eval_batch_size": per_device_batch_size,
