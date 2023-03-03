@@ -11,13 +11,15 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter
 from fastapi import Response
+from fastapi import Form
 from fastapi import UploadFile
+from pydantic import BaseModel
 from sentence_splitter import SentenceSplitter
 from sqlalchemy import select
 
 import meerkat as mk
 from . import engine
-from . import model
+from . import encode_model
 from ..config import project_base_path
 from ..orm.anno_project import project
 from ..orm.anno_project import user
@@ -35,6 +37,11 @@ class LanguageType(Enum):
 
 
 splitter = SentenceSplitter(language='en')
+
+
+# class FormData(BaseModel):
+#     config: dict = None
+#     files: List[UploadFile]
 
 
 def text_to_sentence(text: Union[str, bytes], name: str = None):
@@ -97,7 +104,7 @@ def upload_file_and_process(files: List[UploadFile],
                             token: str = None,
                             name: str = None,
                             processed: bool = False,
-                            config: dict = None):
+                            config: str = Form(...)):
     """upload multi files by user
     file type supported is txt,json,csv,xlsx
 
@@ -112,18 +119,19 @@ def upload_file_and_process(files: List[UploadFile],
     [{'title': 'Rapunzel', 'content': 'foo bar ....'}]
 
     """
+    # config = data.config
+    # files = data.files
+    config = json.loads(config)
     try:
         if processed:
-            breakpoint()
             res = pd.DataFrame(columns=config['columns'])
             for file in files:
                 if file.filename.endswith('.csv'):
-                    res.concat(pd.read_csv(io.BytesIO(file.file.read())))
+                    res = pd.concat([res, pd.read_csv(io.BytesIO(file.file.read()))], ignore_index=True)
                 elif file.filename.endswith('xlsx'):
-                    res.concat(pd.read_excel(file.file.read()))
+                    res = pd.concat([res, pd.read_excel(file.file.read())], ignore_index=True)
                 elif file.filename.endswith('json'):
-                    for text in json.load(file.file):
-                        res.concat(pd.DataFrame(text))
+                    res = pd.concat([res, pd.DataFrame(json.load(file.file))], ignore_index=True)
         else:
             res = []
             for file in files:
@@ -143,29 +151,41 @@ def upload_file_and_process(files: List[UploadFile],
         # response.status_code = 400
         # return 'Process data error, please check data content'
 
-    df = mk.DataFrame(res)
+    df = mk.DataFrame.from_pandas(res, index=False)
     df.create_primary_key("id")
-    df['embed'] = model.encode(df['sentence'].to_list())
-    project_name = name or uuid.uuid4().hex
-    save_processed_file_name = f"{project_name}.mk"
-    saved_path = os.path.join(project_base_path, save_processed_file_name)
+    if not processed:
+        df['embed'] = encode_model.model.encode(df['sentence'].to_list())
+    project_data_file = uuid.uuid4().hex
+    project_name = name or project_data_file
+    saved_path = os.path.join(project_base_path, f"{project_data_file}.mk")
 
     if token is not None:
         with engine.connect() as conn:
             user_res = conn.execute(select(user.c.id).where(user.c.token == token)).fetchone()
-            conn.execute(project.insert(), {"name": project_name, "user_id": user_res[0], 'file_path': saved_path})
+            conn.execute(project
+                         .insert()
+                         .values({"name": project_name,
+                                  "user_id": user_res[0],
+                                  'file_path': project_data_file,
+                                  'config': config}))
             df.write(saved_path)
     return {'res': res,
-            'saved_file': save_processed_file_name}
+            'saved_file': saved_path}
 
 
 @router.post("/data/match")
-def upload_file_and_process(data: str, search_words, response: Response):
+def upload_file_and_process(project_id: int, search_words, response: Response):
     """search the best match sentence in processed data by search_words
 
     """
-    df = mk.read(f'{data}.mk')
-    kw_embed = model.encode(search_words)
+    conn = engine.connect()
+    project_res = conn.execute(select(project.c.id,
+                                      project.c.name,
+                                      project.c.file_path,
+                                      project.c.config).where(project.c.id == project_id)).fetchone()
+
+    df = mk.read(os.path.join(project_base_path, f'{project_res[2]}.mk'))
+    kw_embed = encode_model.model.encode(search_words)
     df['scores'] = df['embed'].map(
         lambda x: np.dot(x, kw_embed) / (np.linalg.norm(x) * np.linalg.norm(kw_embed))).squeeze()
     sort_by_keyword_df = df.sort(by='scores', ascending=False)

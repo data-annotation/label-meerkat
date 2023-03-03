@@ -45,7 +45,9 @@ label_result = Table(
     Column("user_id", Integer, ForeignKey("user.id"), nullable=False),
     Column("project_id", Integer, ForeignKey("project.id"), nullable=False),
     Column("config", JSON, nullable=False),
-    Column("iteration", JSON),
+    Column("iteration", Integer, default=1),
+    Column("last_model", String),
+    Column("current_model", String),
     Column("file_path", String,  unique=True, nullable=False)
 )
 
@@ -78,19 +80,21 @@ if __name__ == "__main__":
     conn.execute(user.insert(),
                  {"name": "jack", "token": "password"})
     conn.execute(project.insert(),
-                 {"name": "faire_tale_label", 
-                 "user_id": 2, 
-                 "file_path": "foo",
-                 "config": {"type": "sentence_relation",
-                            "columns": [ "premise", "hypothesis"]}})
-    conn.execute(label_result.insert(),
-                 {"name": "jack label",
-                  "project_id": 3,
+                 {"name": "faire_tale_label",
                   "user_id": 2,
-                  "config": {'label_choice': ['entailment', 'neutral', 'contradiction'], 
-                             'sentence_column_1': 'premise', 
-                             'sentence_column_2': 'hypothesis'},
-                  "iteration": {'ok': 'yes'},
-                  "file_path": "foo"})
+                  "file_path": "foo",
+                  "config": {"type": "sentence_relation",
+                             "columns": ["premise", "hypothesis"]}})
+    res = conn.execute(label_result
+                       .insert()
+                       .values({"name": "jack label",
+                                "project_id": 3,
+                                "user_id": 2,
+                                "config": {
+                                  'label_choice': ['entailment', 'neutral', 'contradiction'],
+                                  'sentence_column_1': 'premise',
+                                  'sentence_column_2': 'hypothesis'},
+                                "iteration": 1,
+                                "file_path": "foo"}))
     # conn.execute(ins)
 

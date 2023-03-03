@@ -18,7 +18,24 @@ def prediction_model_accuracy(predictions, references, flag, iteration):
   print("total test examples: ", total)
   print("prediction model accuracy: ", accuracy)
   if flag != 'ignore':
-    print("RESULTS: [# current iteration %d], [# data per label %d], [# epoch RG %d], [# epoch P %d], [Learning Rate %f], [Batch size per device %d], [Select %s], [Accuracy %f]" % (iteration, num_data_per_batch, num_epochs_rg, num_epochs_p, learning_rate, per_device_batch_size, flag, accuracy))
+    print("RESULTS: [# current iteration %d], [# data per label %d], [# epoch RG %d], [# epoch P %d], [Learning Rate %f], "
+          "[Batch size per device %d], [Select %s], [Accuracy %f]" % (iteration, num_data_per_batch,
+                                                                      num_epochs_rg, num_epochs_p,
+                                                                      learning_rate, per_device_batch_size,
+                                                                      flag, accuracy))
+
+
+def prediction_accuracy(predictions, references):
+  correct = total = 0
+
+  for groundtruths, prediction in zip(references, predictions):
+    total += 1
+
+    if groundtruths == prediction:
+      correct += 1
+  accuracy = correct / total
+  print("total test examples: ", total)
+  print("prediction model accuracy: ", accuracy)
 
 
 # def rationale_model_accuracy(predictions, references):
@@ -33,7 +50,7 @@ def prediction_model_accuracy(predictions, references, flag, iteration):
 #   print("rationale model ROUGE-L: ", score/len(predictions) )
 
 
-def predict(test_dataset, model_name, model_path, flag, iteration):
+def predict(test_dataset, model_name, model_path):
   model = T5ForConditionalGeneration.from_pretrained(model_path).to(device)
   tokenizer = T5Tokenizer.from_pretrained(model_path)
 
@@ -78,10 +95,9 @@ def predict(test_dataset, model_name, model_path, flag, iteration):
   # print(len(predictions), len(references))
 
   if model_name == 'prediction':
-    prediction_model_accuracy(predictions, references, flag, iteration)
+    prediction_accuracy(predictions, references)
   ##elif model_name == 'rationale':
   ##  rationale_model_accuracy(predictions, references)
-
 
   return predictions
 

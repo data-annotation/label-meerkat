@@ -41,10 +41,12 @@ def single_project(project_id: int):
     conn = engine.connect()
     project_res = conn.execute(select(project.c.id,
                                       project.c.name,
-                                      project.c.file_path).where(project.c.id == project_id)).fetchone()
+                                      project.c.file_path,
+                                      project.c.config).where(project.c.id == project_id)).fetchone()
 
     df = mk.read(project_res[2])
+    config = project_res[3]
 
-    res = df[['paragraph', 'index', 'sentence', 'name']].to_pandas().to_dict('records')
+    res = df[config['columns']+['id']].to_pandas().to_dict('records')
     return res
 

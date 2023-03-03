@@ -4,9 +4,12 @@ import os
 import sys
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+from typing import Union
 
 import numpy as np
+import pandas as pd
 import torch
+from datasets import Dataset
 from tqdm import tqdm
 
 from transformers import T5ForConditionalGeneration, T5Tokenizer, EvalPrediction
@@ -18,7 +21,10 @@ from transformers import (
   set_seed,
 )
 
+from services.config import model_path
 from services.model import device
+from services.model.util.model_input import prediction_model_preprocessing
+from services.model.util.model_input import rationale_model_preprocessing
 
 
 logger = logging.getLogger(__name__)
@@ -196,26 +202,10 @@ def finetune(config_json):
   return results
 
 
-def predict(test_dataset, model_name, model_path, flag, iteration):
+def predict(test_dataset, model_path):
   model = T5ForConditionalGeneration.from_pretrained(model_path).to(device)
   tokenizer = T5Tokenizer.from_pretrained(model_path)
 
-  # os.makedirs(TEMP_FOLDER_PATH + 'rationale_model_' + str(index) )
-  # os.makedirs(TEMP_FOLDER_PATH + 'prediction_model_' + str(index) )
-  # shutil.rmtree(TEMP_FOLDER_PATH+'rationale_model_'+str(index))
-  # shutil.rmtree(TEMP_FOLDER_PATH+'prediction_model_'+str(index))
-  '''
-  ## CLEANING CODE
-
-  shutil.rmtree(model_path)
-
-  if not os.path.exists(model_path):
-    os.makedirs(model_path)
-
-  model.save_pretrained(model_path) 
-  ##tokenizer.save_pretrained(model_path)
-  print(" - successfully clean model saving folder")
-  '''
   dataloader = torch.utils.data.DataLoader(test_dataset, batch_size=32)
 
   answers = []
@@ -240,3 +230,44 @@ def predict(test_dataset, model_name, model_path, flag, iteration):
   assert len(predictions) == len(references)
 
   return predictions
+
+
+def predict_pipeline(data_predict: Union[list, dict, pd.DataFrame],
+                     model_id: str,
+                     labels: list = None,
+                     column_1: str = 'premise',
+                     column_2: str = 'hypothesis',
+                     explanation_column: str = 'explanation_1'):
+
+  labels = labels or ['entailment', 'neutral', 'contradiction']
+
+  if isinstance(data_predict, pd.DataFrame):
+    predict_dataset = Dataset.from_pandas(data_predict)
+  elif isinstance(data_predict, dict):
+    predict_dataset = Dataset.from_dict(data_predict)
+  else:
+    predict_dataset = Dataset.from_list(data_predict)
+
+  rationale_model_predict_dataset = rationale_model_preprocessing(predict_dataset,
+                                                                  labels=labels,
+                                                                  column_1=column_1,
+                                                                  column_2=column_2,
+                                                                  explanation_column=explanation_column)
+
+  work_dir = os.path.join(model_path, model_id)
+  r_model_path = os.path.join(work_dir, 'model', 'rationale')
+  p_model_path = os.path.join(work_dir, 'model', 'prediction')
+
+  predicted_rationale = predict(rationale_model_predict_dataset, r_model_path)
+
+  ## preprocess generated rationales
+  predict_dataset = predict_dataset.add_column("generated_rationale",
+                                               predicted_rationale)
+
+  prediction_model_batch_train_dataset = prediction_model_preprocessing(predict_dataset,
+                                                                        labels=labels,
+                                                                        column_1=column_1,
+                                                                        column_2=column_2,
+                                                                        explanation_column='generated_rationale')
+  predicted_label = predict(prediction_model_batch_train_dataset, p_model_path)
+  return predicted_rationale, predicted_label
