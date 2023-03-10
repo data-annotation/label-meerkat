@@ -269,67 +269,6 @@ def update_label_result(label_result_id: int,
   return new_model_id
 
 
-@router.patch("/{label_result_id}")
-def update_label_result(label_result_id: int,
-                        background_tasks: BackgroundTasks,
-                        label_data: dict = Body(embed=True)):
-  """
-  update a label result
-
-  """
-  conn = engine.connect()
-  sql = select(label_result.c.id,
-               label_result.c.user_id,
-               label_result.c.project_id,
-               label_result.c.file_path,
-               label_result.c.last_model,
-               label_result.c.current_model,
-               label_result.c.iteration,
-               label_result.c.config).where(label_result.c.id == label_result_id)
-
-  label_res = conn.execute(sql).fetchone()
-  if not label_res:
-    raise HTTPException(status_code=400, detail="Labels can not found!")
-
-  project_res = conn.execute(select(project.c.id,
-                                    project.c.name,
-                                    project.c.file_path,
-                                    project.c.config).where(project.c.id == label_res[2])).fetchone()
-
-  project_data = mk.read(os.path.join(project_base_path, f'{project_res[2]}.mk')).to_pandas()
-  label_mk_df = mk.read(os.path.join(label_base_path, f'{label_res[3]}.mk'))
-  label_data = pd.DataFrame(label_data)
-
-  label_full = pd.concat([label_mk_df.to_pandas(), label_data])
-  current_model = label_res[5]
-  new_model_id = uuid.uuid4().hex
-  project_with_label = project_data.join(label_full.set_index('id'), on='id')
-  all_labeled_project_data = project_with_label[project_with_label['label'].notnull()][['premise',
-                                                                                        'hypothesis',
-                                                                                        'label',
-                                                                                        'explanation_1']]
-  all_labeled_project_data['label'] = all_labeled_project_data['label'].astype(int)
-  background_tasks.add_task(one_training_iteration,
-                            labeled_data=all_labeled_project_data,
-                            model_id=new_model_id,
-                            old_model_id=current_model)
-
-  ttt = mk.from_pandas(label_full, index=False)
-
-  ttt.write(os.path.join(label_base_path, f'{label_res[3]}.mk'))
-
-  sql = label_result.update().where(label_result.c.id == label_result_id).values({'last_model': current_model,
-                                                                        'current_model': new_model_id})
-  conn.execute(sql)
-  no_label_data = (project_with_label[project_with_label['label'].isnull()]
-                   [['premise', 'hypothesis', 'label', 'explanation_1']])
-  background_tasks.add_task(predict_pipeline,
-                            data_predict=no_label_data,
-                            model_id=new_model_id,
-                            label_id=label_result_id)
-  return new_model_id
-
-
 @router.get("/{label_result_id}/state")
 def get_label_state(label_result_id: int):
   """
