@@ -2,6 +2,7 @@ from services.model import tokenizer
 from datasets import Dataset
 from functools import partial
 
+
 def rationale_model_define_input_1(example,
                                    label: list,
                                    column_1: str,
@@ -95,7 +96,7 @@ def prediction_model_preprocessing(input_dataset,
                                    column_1: str,
                                    column_2: str,
                                    explanation_column: str):
-  prediction_model_input = partial(rationale_model_define_input_1,
+  prediction_model_input = partial(prediction_model_define_input_1,
                                    label=labels,
                                    column_1=column_1,
                                    column_2=column_2,

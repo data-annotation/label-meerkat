@@ -1,4 +1,4 @@
-from services.model.AL import one_iter
+from services.model.AL import one_training_iteration
 from services.model.arch import predict_pipeline
 from pprint import pprint
 
@@ -61,11 +61,11 @@ test_data = {'premise': ['A person on a horse jumps over a broken down airplane.
                                'Just because the boy is jumping on a skateboard does not imply he is wearing safety equipment',
                                'it is not necessarily true the man drinks his juice']}
 
-one_iter(test_data, model_id='ac56a465ed5b4a058f91cb3a9975f7bf')
+one_training_iteration(test_data, model_id='abc')
 
 r, p = predict_pipeline(test_data,
-                        'model_data/rationale_model/ac56a465ed5b4a058f91cb3a9975f7bf',
-                        'model_data/prediction_model/ac56a465ed5b4a058f91cb3a9975f7bf')
+                        model_id='abc',
+                        label_id=1)
 
 pprint([r, p])
 

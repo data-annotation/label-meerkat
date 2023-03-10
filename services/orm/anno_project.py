@@ -45,6 +45,7 @@ label_result = Table(
     Column("user_id", Integer, ForeignKey("user.id"), nullable=False),
     Column("project_id", Integer, ForeignKey("project.id"), nullable=False),
     Column("config", JSON, nullable=False),
+    Column("extra", JSON, server_default={}),
     Column("iteration", Integer, default=1),
     Column("last_model", String),
     Column("current_model", String),

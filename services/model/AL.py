@@ -17,13 +17,13 @@ from services.model.util.model_input import prediction_model_preprocessing
 from services.model.util.model_input import rationale_model_preprocessing
 
 
-def one_iter(labeled_data: Union[list, dict],
-             column_1: str = 'premise',
-             column_2: str = 'hypothesis',
-             explanation_column: str = 'explanation_1',
-             labels: list = None,
-             model_id: str = 'test_model',
-             old_model_id: str = None):
+def one_training_iteration(labeled_data: Union[list, dict],
+                           column_1: str = 'premise',
+                           column_2: str = 'hypothesis',
+                           explanation_column: str = 'explanation_1',
+                           labels: list = None,
+                           model_id: str = 'test_model',
+                           old_model_id: str = None):
 
   labels = labels or ['entailment', 'neutral', 'contradiction']
 
@@ -84,7 +84,7 @@ def one_iter(labeled_data: Union[list, dict],
 
   ##print("=== START FINETUNE MODEL RG ===")
 
-  finetune(rationale_model_config_json)
+  finetune(rationale_model_config_json, model_id=model_id, total_steps=2, current_step=1)
 
   ##print("=== START GENERATE RATIONALE FOR MODEL P ===")
 
@@ -131,7 +131,7 @@ def one_iter(labeled_data: Union[list, dict],
   }
 
   # === START FINETUNE MODEL P ===
-  finetune(prediction_model_config_json)
+  finetune(prediction_model_config_json, model_id=model_id, total_steps=2, current_step=2)
 
 
 

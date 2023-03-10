@@ -1,4 +1,5 @@
 import dataclasses
+import json
 import logging
 import os
 import sys
@@ -7,9 +8,12 @@ from typing import Dict, List, Optional
 from typing import Union
 
 import numpy as np
+import datetime
 import pandas as pd
 import torch
 from datasets import Dataset
+from sqlalchemy import func
+from sqlalchemy import select
 from tqdm import tqdm
 
 from transformers import T5ForConditionalGeneration, T5Tokenizer, EvalPrediction
@@ -20,15 +24,82 @@ from transformers import (
   TrainingArguments,
   set_seed,
 )
+from transformers import TrainerCallback
 
 from services.config import model_path
+from services.config import predict_result_path
 from services.model import device
 from services.model.util.model_input import prediction_model_preprocessing
 from services.model.util.model_input import rationale_model_preprocessing
+from services.orm.anno_project import label_result
+from services.routers import engine
 
 
 logger = logging.getLogger(__name__)
 
+
+class MyCallback(TrainerCallback):
+  "A callback that prints a message at the beginning of training"
+  label_res = dict()
+
+  @property
+  def label_res_info(self):
+    if not self.label_res:
+      conn = engine.connect()
+      sql = select(label_result.c.id,
+                   label_result.c.current_model).where(label_result.c.current_model == self.model_id)
+      res = conn.execute(sql).fetchone()
+      if res:
+        self.label_res = {'label_id': res[0], 'model_id': res[1]}
+      else:
+        return None
+    return self.label_res
+
+  def __init__(self, model_id: str = None, total_steps: int = 1, current_step: int = 1):
+    self.model_id = model_id
+    self.total_steps = total_steps
+    self.current_step = current_step
+
+  def on_train_begin(self, args, state, control, **kwargs):
+    if self.label_res_info:
+      sql = (label_result
+             .update()
+             .where(label_result.c.id == self.label_res_info['label_id'])
+             .values(func.json_patch(label_result.extra,
+                                     {'train_begin': True,
+                                      'total_steps': self.total_steps,
+                                      'current_steps': self.current_step,
+                                      'train_end': False,
+                                      'begin_time': datetime.datetime.utcnow().isoformat()})))
+      engine.connect().execute(sql)
+    print("######### Training begin ###########")
+
+  def on_epoch_begin(self, args, state, control, **kwargs):
+    if self.label_res_info:
+      sql = (label_result
+             .update()
+             .where(label_result.c.id == self.label_res_info['label_id'])
+             .values({'extra': func.json_set(label_result.extra,
+                                             '$.progress',
+                                             f'{state.epoch}/{state.num_train_epochs}')}))
+      engine.connect().execute(sql)
+    print(state.epoch, '#####', state.num_train_epochs)
+
+  def on_train_end(self, args, state, control, **kwargs):
+    if self.label_res_info:
+      train_info = {
+        'current_step': self.current_step
+      }
+      if self.current_step == self.total_steps:
+        train_info.update({'train_end': True,
+                           'end_time': datetime.datetime.utcnow().isoformat()})
+      sql = (label_result
+             .update()
+             .where(label_result.c.id == self.label_res_info['label_id'])
+             .values({'extra': func.json_patch(label_result.extra,
+                                               train_info)}))
+      engine.connect().execute(sql)
+    print("######### Training End ###########")
 
 # prepares lm_labels from target_ids, returns examples with keys as expected by the forward method
 # this is necessacry because the trainer directly passes this dict as arguments to the model
@@ -96,7 +167,7 @@ class DataTrainingArguments:
   )
 
 
-def finetune(config_json):
+def finetune(config_json, model_id: str = None, total_steps: int = 1, current_step: int = 1):
   # See all possible arguments in src/transformers/training_args.py
   # or by passing the --help flag to this script.
   # We now keep distinct sets of args, for a cleaner separation of concerns.
@@ -166,7 +237,8 @@ def finetune(config_json):
       args=training_args,
       train_dataset=train_dataset,
       eval_dataset=valid_dataset,
-      data_collator=T2TDataCollator()
+      data_collator=T2TDataCollator(),
+      callbacks=[MyCallback(model_id=model_id, total_steps=total_steps, current_step=current_step)]
   )
 
   # Training
@@ -234,10 +306,16 @@ def predict(test_dataset, model_path):
 
 def predict_pipeline(data_predict: Union[list, dict, pd.DataFrame],
                      model_id: str,
+                     label_id: int,
                      labels: list = None,
                      column_1: str = 'premise',
                      column_2: str = 'hypothesis',
                      explanation_column: str = 'explanation_1'):
+
+  result_path = os.path.join(predict_result_path, str(label_id))
+  os.makedirs(result_path, exist_ok=True)
+  with open(result_path+f'/{model_id}.json', 'w') as f:
+    json.dump({'status': 'predicting'}, f)
 
   labels = labels or ['entailment', 'neutral', 'contradiction']
 
@@ -270,4 +348,12 @@ def predict_pipeline(data_predict: Union[list, dict, pd.DataFrame],
                                                                         column_2=column_2,
                                                                         explanation_column='generated_rationale')
   predicted_label = predict(prediction_model_batch_train_dataset, p_model_path)
+
+  with open(result_path+f'/{model_id}.json', 'w') as f:
+    json.dump({'status': 'finished',
+               'predicted_rationale': predicted_rationale,
+               'predicted_label': predicted_label},
+              f)
+
   return predicted_rationale, predicted_label
+
