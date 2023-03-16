@@ -150,7 +150,9 @@ def create_label(project_id: int,
                             model_id=model_uuid,
                             label_id=new_label_result[0])
 
-  return model_uuid
+  return {'label_id': new_label_result[0],
+          'model_id': model_uuid}
+
 
 @router.get("/project/{project_id}")
 def list_label_result_of_a_project(project_id: int):
@@ -257,8 +259,12 @@ def update_label_result(label_result_id: int,
 
   ttt.write(os.path.join(label_base_path, f'{label_res[3]}.mk'))
 
-  label_result.update().where(label_result.c.id == label_result_id).values({'last_model': current_model,
-                                                                            'current_model': new_model_id})
+  sql = (label_result
+         .update()
+         .where(label_result.c.id == label_result_id)
+         .values({'last_model': current_model,
+                  'current_model': new_model_id}))
+  conn.execute(sql)
 
   no_label_data = (project_with_label[project_with_label['label'].isnull()]
                    [['premise', 'hypothesis', 'label', 'explanation_1']])
@@ -266,14 +272,15 @@ def update_label_result(label_result_id: int,
                             data_predict=no_label_data,
                             model_id=new_model_id,
                             label_id=label_result_id)
-  return new_model_id
+  return {'label_id': label_result_id,
+          'model_id': new_model_id}
 
 
 @router.get("/{label_result_id}/state")
 def get_label_state(label_result_id: int):
   """
-  get train or predict state after create or update a project label
-  从 request.app.state 从读取吧，或者sqlite
+  get training or predict state after create or update a project label
+
   """
   sql = select(label_result.c.id,
                label_result.c.extra).where(label_result.c.id == label_result_id)

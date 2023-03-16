@@ -3,7 +3,9 @@ from sqlalchemy import select
 
 import meerkat as mk
 from services.orm.anno_project import project
+from fastapi import Response
 from . import engine
+from ..orm.anno_project import label_result
 
 router = APIRouter(
     prefix="/projects",
@@ -32,21 +34,37 @@ def project_list():
     return res
 
 
+
 @router.get("/{project_id}")
-def single_project(project_id: int):
-    """
-    get a project data
+def get_single_project(project_id: int, response: Response):
+  """
+  get a project data
 
-    """
-    conn = engine.connect()
-    project_res = conn.execute(select(project.c.id,
-                                      project.c.name,
-                                      project.c.file_path,
-                                      project.c.config).where(project.c.id == project_id)).fetchone()
+  """
+  conn = engine.connect()
+  project_res = dict(conn.execute(select(project.c.id,
+                                         project.c.name,
+                                         project.c.file_path,
+                                         project.c.config)
+                                  .where(project.c.id == project_id)))
+  if not project_res:
+    response.status_code = 400
+    return 'Project Not Found'
+  label_res = dict(conn.execute(select(label_result.c.id,
+                                       label_result.c.name,
+                                       label_result.c.user_id,
+                                       label_result.c.project_id,
+                                       label_result.c.config,
+                                       label_result.c.create_time,
+                                       label_result.c.update_time,
+                                       label_result.c.file_path)
+                                .where(label_result.c.project_id == project_id)
+                                .order_by(label_result.c.create_time)
+                                .limit(1).fetchone()))
 
-    df = mk.read(project_res[2])
-    config = project_res[3]
+  df = mk.read(project_res[2])
+  config = project_res[3]
 
-    res = df[config['columns']+['id']].to_pandas().to_dict('records')
-    return res
+  res = df[config['columns'] + ['id']].to_pandas().to_dict('records')
+  return res
 

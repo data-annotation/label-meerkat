@@ -2,11 +2,11 @@ from fastapi import FastAPI
 import uvicorn
 
 
-from .routers import data_process
-from .routers import project
-from .routers import user
-from .routers import label
-from .routers import base_query
+from services.routers import data_process
+from services.routers import project
+from services.routers import user
+from services.routers import label
+from services.routers import base_query
 
 app = FastAPI(debug=True)
 

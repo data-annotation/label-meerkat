@@ -169,8 +169,12 @@ def upload_file_and_process(files: List[UploadFile],
                                   'file_path': project_data_file,
                                   'config': config}))
             df.write(saved_path)
+
+            inserted = conn.execute(select([project.c.id], project.c.name == project_name)).fetchone()
+
     return {'res': res,
-            'saved_file': saved_path}
+            'saved_file': saved_path,
+            'project_id': inserted[0]}
 
 
 @router.post("/data/match")

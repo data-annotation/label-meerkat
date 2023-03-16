@@ -12,6 +12,7 @@ import datetime
 import pandas as pd
 import torch
 from datasets import Dataset
+from sqlalchemy import create_engine
 from sqlalchemy import func
 from sqlalchemy import select
 from tqdm import tqdm
@@ -32,7 +33,6 @@ from services.model import device
 from services.model.util.model_input import prediction_model_preprocessing
 from services.model.util.model_input import rationale_model_preprocessing
 from services.orm.anno_project import label_result
-from services.routers import engine
 
 
 logger = logging.getLogger(__name__)
@@ -41,11 +41,11 @@ logger = logging.getLogger(__name__)
 class MyCallback(TrainerCallback):
   "A callback that prints a message at the beginning of training"
   label_res = dict()
-
+  engine = create_engine("sqlite:///test.db", echo=True)
   @property
   def label_res_info(self):
     if not self.label_res:
-      conn = engine.connect()
+      conn = self.engine.connect()
       sql = select(label_result.c.id,
                    label_result.c.current_model).where(label_result.c.current_model == self.model_id)
       res = conn.execute(sql).fetchone()
@@ -65,13 +65,13 @@ class MyCallback(TrainerCallback):
       sql = (label_result
              .update()
              .where(label_result.c.id == self.label_res_info['label_id'])
-             .values(func.json_patch(label_result.extra,
-                                     {'train_begin': True,
-                                      'total_steps': self.total_steps,
-                                      'current_steps': self.current_step,
-                                      'train_end': False,
-                                      'begin_time': datetime.datetime.utcnow().isoformat()})))
-      engine.connect().execute(sql)
+             .values({'extra': func.json_patch(label_result.c.extra,
+                                               json.dumps({'train_begin': True,
+                                                           'total_steps': self.total_steps,
+                                                           'current_step': self.current_step,
+                                                           'train_end': False,
+                                                           'begin_time': datetime.datetime.utcnow().isoformat()}))}))
+      self.engine.connect().execute(sql)
     print("######### Training begin ###########")
 
   def on_epoch_begin(self, args, state, control, **kwargs):
@@ -79,10 +79,10 @@ class MyCallback(TrainerCallback):
       sql = (label_result
              .update()
              .where(label_result.c.id == self.label_res_info['label_id'])
-             .values({'extra': func.json_set(label_result.extra,
+             .values({'extra': func.json_set(label_result.c.extra,
                                              '$.progress',
                                              f'{state.epoch}/{state.num_train_epochs}')}))
-      engine.connect().execute(sql)
+      self.engine.connect().execute(sql)
     print(state.epoch, '#####', state.num_train_epochs)
 
   def on_train_end(self, args, state, control, **kwargs):
@@ -96,9 +96,9 @@ class MyCallback(TrainerCallback):
       sql = (label_result
              .update()
              .where(label_result.c.id == self.label_res_info['label_id'])
-             .values({'extra': func.json_patch(label_result.extra,
-                                               train_info)}))
-      engine.connect().execute(sql)
+             .values({'extra': func.json_patch(label_result.c.extra,
+                                               json.dumps(train_info))}))
+      self.engine.connect().execute(sql)
     print("######### Training End ###########")
 
 # prepares lm_labels from target_ids, returns examples with keys as expected by the forward method

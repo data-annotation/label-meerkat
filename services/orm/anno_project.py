@@ -9,6 +9,7 @@ from sqlalchemy import MetaData
 from sqlalchemy import Sequence
 from sqlalchemy import Index
 from sqlalchemy import func
+from sqlalchemy import text
 
 metadata_obj = MetaData()
 
@@ -45,7 +46,8 @@ label_result = Table(
     Column("user_id", Integer, ForeignKey("user.id"), nullable=False),
     Column("project_id", Integer, ForeignKey("project.id"), nullable=False),
     Column("config", JSON, nullable=False),
-    Column("extra", JSON, server_default={}),
+    Column("extra", JSON, default=dict(), nullable=False,
+           server_default=text("'{}'")),
     Column("iteration", Integer, default=1),
     Column("last_model", String),
     Column("current_model", String),
