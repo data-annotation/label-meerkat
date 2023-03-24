@@ -1,0 +1,20 @@
+services:
+  meerkat-dev:
+    image:  meerkat:1.0
+    command: tail -F anything
+    environment:
+      TZ: Asia/Shanghai
+      PYPI: https://pypi.tuna.tsinghua.edu.cn/simple
+#      HTTP_PROXY: '127.0.0.1:7890'
+#      HTTPS_PROXY: '127.0.0.1:7890'
+#      NO_PROXY: '127.0.0.1,localhost'
+      MK_SERVER_NAME: '0.0.0.0'
+    volumes:
+      - ../code:/home/code
+      - ../data/datasets:/home/.meerkat/datasets
+      - ../data/dataframes:/home/.meerkat/dataframes
+#      - ../meerkat:/meerkat/meerkat
+    ports:
+      - 7860:7860
+      - 7861:7861
+#    network_mode: "host"
