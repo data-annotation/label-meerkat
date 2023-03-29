@@ -60,9 +60,10 @@ model_info = Table(
     metadata_obj,
     Column("id", Integer, Sequence("label_id_seq"), index=True, primary_key=True),
     Column("name", String, nullable=False, index=True, unique=True),
+    Column("model_uuid", String, nullable=False, index=True, unique=True),
     Column("create_time", DateTime(timezone=True), server_default=func.now()),
     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
-    Column("label_id", Integer, ForeignKey("label.id"), nullable=False),
+    Column("label_id", Integer, ForeignKey("label_result.id"), nullable=False),
     Column("extra", JSON, default=dict(), nullable=False,
            server_default=text("'{}'")),
     Column("iteration", Integer, default=1),
@@ -94,19 +95,19 @@ if __name__ == "__main__":
     # ins = project.insert().values(name="faire_tale_label", user_id=1, file_path="abc")
     # ins = label.insert().values(name="jack label", project_id=1, file_path="abc")
     conn = engine.connect()
-    conn.execute(user.insert(),
-                 {"name": "jack", "token": "password"})
-    conn.execute(project.insert(),
+    user_id = conn.execute(user.insert().returning(project.c.id),
+                 {"name": "jack", "token": "password"}).scalar()
+    project_id = conn.execute(project.insert().returning(project.c.id),
                  {"name": "faire_tale_label",
-                  "user_id": 2,
+                  "user_id": user_id,
                   "file_path": "foo",
                   "config": {"type": "sentence_relation",
-                             "columns": ["premise", "hypothesis"]}})
+                             "columns": ["premise", "hypothesis"]}}).scalar()
     res = conn.execute(label_result
                        .insert()
                        .values({"name": "jack label",
-                                "project_id": 3,
-                                "user_id": 2,
+                                "project_id": project_id,
+                                "user_id": user_id,
                                 "config": {
                                   'label_choice': ['entailment', 'neutral', 'contradiction'],
                                   'sentence_column_1': 'premise',

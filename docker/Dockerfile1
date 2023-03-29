@@ -1,23 +1,27 @@
+# syntax = docker/dockerfile:experimental
 FROM python:3.10.10-bullseye
-ARG PYPI=https://pypi.tuna.tsinghua.edu.cn/simple
+ARG PYPI=https://pypi.tuna.tsinghua.edu.cn/simple/
 
-WORKDIR /meerkat
-COPY meerkat/ ./meerkat
-COPY scratch/ ./scratch
-COPY scripts/ ./scripts
-COPY tests/ ./tests
-COPY setup.py ./
-COPY FairytaleQA_Dataset ./FairytaleQA_Dataset
+# RUN pip install 'clip@git+https://github.com/openai/CLIP.git@d50d76daa670286dd6cacf3bcd80b5e4823fc8e1'
 
-RUN pip install -e ".[embeddings-linux,text]" --no-cache-dir -i ${PYPI}
+COPY requirement-anno.txt requirement.txt
 
-WORKDIR /meerkat/meerkat/interactive/app
-RUN npm i
+RUN pip install -r requirement.txt  -i ${PYPI}
+
+RUN --mount=type=cache,mode=0777,target=/Users/jin/Library/Caches/pip pip install -r requirement.txt  -i ${PYPI}
 
 RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian-security bullseye-security main contrib non-free" > /etc/apt/sources.list
 RUN apt-get update
 RUN apt-get install -y vim
 
-WORKDIR /
-#COPY data/datasets/ /home/.meerkat/datasets
-#COPY data/dataframes/ /home/.meerkat/dataframes
+WORKDIR /anno
+COPY services/ services
+
+RUN mkdir label && \
+    mkdir predict_result && \
+    mkdir project && \
+    mkdir data
+
+CMD
+
+

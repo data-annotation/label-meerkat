@@ -47,3 +47,22 @@ def list_label_result_of_a_project(label_id: int):
   with open(result_path+f'/{label_record[1]}.json', 'r') as f:
     res = json.load(f)
   return res
+
+
+
+@router.get("/models/{model_id}/status")
+def get_model_status(model_id: int):
+  """
+  get label result list for a project
+
+  """
+
+  conn = engine.connect()
+  sql = select(label_result.c.id,
+               label_result.c.current_model).where(label_result.c.id == label_id)
+
+  label_record = conn.execute(sql).fetchone()
+  result_path = os.path.join(predict_result_path, str(label_id))
+  with open(result_path+f'/{label_record[1]}.json', 'r') as f:
+    res = json.load(f)
+  return res

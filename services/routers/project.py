@@ -6,6 +6,8 @@ import zipfile
 from typing import List
 from typing import Union
 
+from fastapi import BackgroundTasks
+
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter
@@ -25,6 +27,7 @@ from . import engine
 from services.config import label_base_path
 from services.config import project_base_path
 from services.orm.anno_project import label_result
+from ..model.AL import one_training_iteration
 
 router = APIRouter(
     prefix="/projects",
@@ -87,6 +90,8 @@ def get_project_and_label_by_project_id(project_id: int,
                                        label_result.c.project_id,
                                        label_result.c.config,
                                        label_result.c.extra,
+                                       label_result.c.last_model,
+                                       label_result.c.current_model,
                                        label_result.c.create_time,
                                        label_result.c.update_time,
                                        label_result.c.file_path)
@@ -100,7 +105,7 @@ def get_project_and_label_by_project_id(project_id: int,
 @router.get("/{project_id}")
 def get_single_project(project_id: int,
                        response: Response,
-                       label_id: int,
+                       label_id: int = None,
                        size: int = 1000,
                        num: int = 0,
                        with_data: bool = False,
@@ -133,6 +138,64 @@ def get_single_project(project_id: int,
     res['data'] = project_data.iloc[size*num:size*(num+1)].to_dict('records')
 
   return res
+
+
+@router.post("/{project_id}/training")
+def trigger_project_train(project_id: int,
+                          background_tasks: BackgroundTasks,
+                          response: Response,
+                          label_id: int = None):
+  """
+  get a project data
+
+  """
+  project_res, label_res = get_project_and_label_by_project_id(project_id, label_id=label_id)
+  if not project_res:
+    response.status_code = 400
+    return 'Project Not Found'
+
+  project_data = mk.read(os.path.join(project_base_path,
+                                      f'{project_res["file_path"]}.mk')).to_pandas()
+  label_data = mk.read(os.path.join(label_base_path,
+                                    f'{label_res["file_path"]}.mk')).to_pandas()
+
+  current_model = label_res['current_model']
+  new_model_id = uuid.uuid4().hex
+  project_with_label = project_data.join(label_data.set_index('id'), on='id')
+  columns = project_res['config'].get('columns', [])
+  columns += label_res['config'].get('columns', [])
+  all_labeled_project_data = project_with_label[project_with_label['label'].notnull()][['premise',
+                                                                                        'hypothesis',
+                                                                                        'label',
+                                                                                        'explanation_1']]
+
+  background_tasks.add_task(one_training_iteration,
+                            labeled_data=all_labeled_project_data,
+                            model_id=new_model_id,
+                            old_model_id=current_model)
+
+  return new_model_id
+
+
+
+@router.get("/labels/{project_id}")
+def list_label_result_of_a_project(project_id: int):
+  """
+  get label result list for a project
+
+  """
+  conn = engine.connect()
+  sql = select(label_result.c.id,
+               label_result.c.name,
+               label_result.c.user_id,
+               label_result.c.project_id,
+               label_result.c.config,
+               label_result.c.create_time,
+               label_result.c.update_time).where(label_result.c.project_id == project_id)
+
+  label_result_list = conn.execute(sql).mappings().all()
+
+  return label_result_list
 
 
 

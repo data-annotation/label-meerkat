@@ -1,4 +1,4 @@
-from ..model import tokenizer
+from services.model import tokenizer
 from datasets import Dataset
 from functools import partial
 
