@@ -105,3 +105,6 @@ venv.bak/
 
 # add
 .idea/
+
+# model
+all-MiniLM-L6-v2
