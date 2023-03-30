@@ -167,20 +167,18 @@ def upload_file_and_process(files: List[UploadFile],
     saved_path = os.path.join(project_base_path, f"{project_data_file}.mk")
 
     if token is not None:
-        with engine.connect() as conn:
+        with engine.begin() as conn:
             user_res = conn.execute(select(user.c.id).where(user.c.token == token)).fetchone()
-            conn.execute(project
-                         .insert()
-                         .values({"name": project_name,
-                                  "user_id": user_res[0],
-                                  'file_path': project_data_file,
-                                  'config': config}))
+            inserted = conn.execute(project
+                                    .insert()
+                                    .values({"name": project_name,
+                                             "user_id": user_res[0],
+                                             'file_path': project_data_file,
+                                             'config': config}).returning(project.c.id)).scalar_one()
             df.write(saved_path)
 
-            inserted = conn.execute(select([project.c.id], project.c.name == project_name)).fetchone()
-
     return {'saved_file': saved_path,
-            'project_id': inserted[0]}
+            'project_id': inserted}
 
 
 @router.post("/data/match")

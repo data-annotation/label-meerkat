@@ -94,25 +94,25 @@ if __name__ == "__main__":
     # ins = user.insert().values(name="jack", token="Jack Jones")
     # ins = project.insert().values(name="faire_tale_label", user_id=1, file_path="abc")
     # ins = label.insert().values(name="jack label", project_id=1, file_path="abc")
-    conn = engine.connect()
-    user_id = conn.execute(user.insert().returning(project.c.id),
-                 {"name": "jack", "token": "password"}).scalar()
-    project_id = conn.execute(project.insert().returning(project.c.id),
-                 {"name": "faire_tale_label",
-                  "user_id": user_id,
-                  "file_path": "foo",
-                  "config": {"type": "sentence_relation",
-                             "columns": ["premise", "hypothesis"]}}).scalar()
-    res = conn.execute(label_result
-                       .insert()
-                       .values({"name": "jack label",
-                                "project_id": project_id,
-                                "user_id": user_id,
-                                "config": {
-                                  'label_choice': ['entailment', 'neutral', 'contradiction'],
-                                  'sentence_column_1': 'premise',
-                                  'sentence_column_2': 'hypothesis'},
-                                "iteration": 1,
-                                "file_path": "foo"}))
+    with engine.begin() as conn:
+      user_id = conn.execute(user.insert().returning(project.c.id),
+                   {"name": "jack", "token": "password"}).scalar()
+      project_id = conn.execute(project.insert().returning(project.c.id),
+                   {"name": "faire_tale_label",
+                    "user_id": user_id,
+                    "file_path": "foo",
+                    "config": {"type": "sentence_relation",
+                               "columns": ["premise", "hypothesis"]}}).scalar()
+      res = conn.execute(label_result
+                         .insert()
+                         .values({"name": "jack label",
+                                  "project_id": project_id,
+                                  "user_id": user_id,
+                                  "config": {
+                                    'label_choice': ['entailment', 'neutral', 'contradiction'],
+                                    'sentence_column_1': 'premise',
+                                    'sentence_column_2': 'hypothesis'},
+                                  "iteration": 1,
+                                  "file_path": "foo"}))
     # conn.execute(ins)
 
