@@ -62,7 +62,7 @@ def project_list():
                             .select_from(j).group_by(project.c.id)).mappings().all()
     return projects
 
-
+@router.get("/projects/{project_id}/{label_id}")
 def get_project_and_label_by_project_id(project_id: int,
                                         label_id: int = None,
                                         coon=None):
@@ -209,17 +209,18 @@ def list_label_result_of_a_project(project_id: int):
 
   return label_result_list
 
-# '''
-#   get model list of a project
-# '''
-# class model_list_project_response(BaseModel):
-#   model_path:str = "model_data/model1/"
-#   model_id:int = uuid.uuid4().hex
+'''
+  get model list of a project
+'''
+class model_list_project_response(BaseModel):
+  model_path:str = "model_data/model1/"
+  model_id:int = uuid.uuid4().hex
 
-# @router.get("/{project_id}/models")
-# def model_list_project(project_id:int, response_model=model_list_project_response):
-#   return {"model_path": "model_data/model1/",
-#           "model_id":uuid.uuid4().hex}
+@router.get("/{project_id}/models", response_model=model_list_project_response)
+def model_list_project(project_id:int):
+  print(project_id)
+  return {"model_path": "model_data/model1/",
+          "model_id":uuid.uuid4().hex}
 
 
 
