@@ -28,6 +28,7 @@ from services.config import label_base_path
 from services.config import project_base_path
 from services.orm.anno_project import label_result
 from ..model.AL import one_training_iteration
+from pydantic import BaseModel
 
 router = APIRouter(
     prefix="/projects",
@@ -139,8 +140,9 @@ def get_single_project(project_id: int,
 
   return res
 
-
-@router.post("/{project_id}/training")
+class model_id_response(BaseModel):
+  new_model_id:int = uuid.uuid4().hex
+@router.post("/{project_id}/training", response_model=model_id_response)
 def trigger_project_train(project_id: int,
                           background_tasks: BackgroundTasks,
                           response: Response,
@@ -174,11 +176,21 @@ def trigger_project_train(project_id: int,
                             model_id=new_model_id,
                             old_model_id=current_model)
 
-  return new_model_id
+  return {"new_model_id": new_model_id}
 
+import datetime
+class project_label_result(BaseModel):
+  id:int = 1
+  name:str = 'jack'
+  user_id:int = 1
+  project_id:int = 1
+  config: dict = {'label_choice': ['entailment', 'neutral', 'contradiction'],
+                  'sentence_column_1': 'premise',
+                  'sentence_column_2': 'hypothesis'}
+  create_time:datetime.datetime = datetime.datetime.now()
+  update_time:datetime.datetime = datetime.datetime.now()
 
-
-@router.get("/labels/{project_id}")
+@router.get("/labels/{project_id}",response_model=List[project_label_result])
 def list_label_result_of_a_project(project_id: int):
   """
   get label result list for a project
@@ -197,6 +209,17 @@ def list_label_result_of_a_project(project_id: int):
 
   return label_result_list
 
+# '''
+#   get model list of a project
+# '''
+# class model_list_project_response(BaseModel):
+#   model_path:str = "model_data/model1/"
+#   model_id:int = uuid.uuid4().hex
+
+# @router.get("/{project_id}/models")
+# def model_list_project(project_id:int, response_model=model_list_project_response):
+#   return {"model_path": "model_data/model1/",
+#           "model_id":uuid.uuid4().hex}
 
 
 

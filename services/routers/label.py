@@ -270,8 +270,10 @@ def get_label_state(label_result_id: int):
 
   return {'state': res[1]}
 
-
-@router.patch("/{label_id}")
+class update_label_result(BaseModel):
+  label_id:int = 1
+  model_id:int = uuid.uuid4().hex
+@router.patch("/{label_id}", response_model=update_label_result)
 def only_update_label(label_id: int,
                       label_data: dict = Body(embed=True)):
   """
@@ -356,3 +358,7 @@ def only_update_label(label_id: int):
 
   return {'label_id': label_res['id'],
           'model_id': new_model_id}
+
+# @router.get("/{label_id}/predict/{model_id}")
+# def predict_unlabel(label_id:int, model_id:int):
+#   return {"label"}
