@@ -17,9 +17,9 @@ from services.config import predict_result_path
 from services.config import project_base_path
 from services.model.AL import one_training_iteration
 from services.model.arch import predict_pipeline
-from services.orm.anno_project import label_result
-from services.orm.anno_project import project
-from services.orm.anno_project import user
+from services.orm.tables import label_result
+from services.orm.tables import project
+from services.orm.tables import user
 from services.routers import engine
 from fastapi import BackgroundTasks
 

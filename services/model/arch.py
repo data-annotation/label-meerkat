@@ -32,7 +32,7 @@ from services.config import predict_result_path
 from services.model import device
 from services.model.util.model_input import prediction_model_preprocessing
 from services.model.util.model_input import rationale_model_preprocessing
-from services.orm.anno_project import label_result
+from services.orm.tables import label_result
 
 
 logger = logging.getLogger(__name__)

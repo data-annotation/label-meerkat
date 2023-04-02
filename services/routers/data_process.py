@@ -21,8 +21,8 @@ import meerkat as mk
 from . import engine
 from . import encode_model
 from ..config import project_base_path
-from ..orm.anno_project import project
-from ..orm.anno_project import user
+from ..orm.tables import project
+from ..orm.tables import user
 
 router = APIRouter(
     prefix="/file",

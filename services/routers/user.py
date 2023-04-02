@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from sqlalchemy import select
 
 from . import engine
-from ..orm.anno_project import user
+from ..orm.tables import user
 
 router = APIRouter(
     prefix="/users",

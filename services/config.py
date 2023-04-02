@@ -7,9 +7,9 @@ predict_result_path = 'predict_result'
 
 model_path = 'model_data'
 
-SentenceTransformer_PATH = "all-MiniLM-L6-v2"
+SentenceTransformer_PATH = "../all-MiniLM-L6-v2"
 
-
+sqlite_dsn = 'sqlite:///test.db'
 base_model = 'google/t5-efficient-tiny'
 # base_model = 't5-base'
 # base_model = 't5-small'

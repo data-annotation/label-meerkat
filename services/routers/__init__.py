@@ -1,8 +1,6 @@
 from sentence_transformers import SentenceTransformer
-from sqlalchemy import create_engine
+from services.orm.tables import engine
 
-
-engine = create_engine("sqlite:///test.db", echo=True)
 
 class EncodeModel:
   _model = None
