@@ -1,12 +1,13 @@
-# syntax = docker/dockerfile:experimental
 FROM python:3.10.10-bullseye
-ARG PYPI=https://pypi.tuna.tsinghua.edu.cn/simple/
+ARG PYPI=https://mirror.sjtu.edu.cn/pypi/web/simple
 
 # RUN pip install 'clip@git+https://github.com/openai/CLIP.git@d50d76daa670286dd6cacf3bcd80b5e4823fc8e1'
 
 COPY requirement-anno.txt requirement.txt
 
-RUN --mount=type=cache,mode=0777,target=/Users/jin/Library/Caches/pip pip install -r requirement.txt -i ${PYPI}
+RUN pip install -r requirement.txt -i ${PYPI}
+
+# RUN --mount=type=cache,mode=0777,target=/Users/jin/Library/Caches/pip
 
 RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian-security bullseye-security main contrib non-free" > /etc/apt/sources.list
 RUN apt-get update
@@ -14,12 +15,14 @@ RUN apt-get install -y vim
 
 WORKDIR /anno
 COPY services/ services
+COPY all-MiniLM-L6-v2/ all-MiniLM-L6-v2
+COPY data/ data
 
 RUN mkdir label && \
     mkdir predict_result && \
     mkdir project && \
-    mkdir data
+    mkdir model_data
 
-CMD uvicorn services.main:app
+CMD uvicorn services.main:app --host 0.0.0.0
 
 

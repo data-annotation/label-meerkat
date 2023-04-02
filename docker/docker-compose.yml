@@ -1,9 +1,9 @@
 services:
   meerkat-dev:
-    image:  anno:1.2
+    image:  anno:1.0
     environment:
       TZ: Asia/Shanghai
-      PYPI: https://pypi.tuna.tsinghua.edu.cn/simple
+      PYPI: https://mirror.sjtu.edu.cn/pypi/web/simple
 #      HTTP_PROXY: '127.0.0.1:7890'
 #      HTTPS_PROXY: '127.0.0.1:7890'
 #      NO_PROXY: '127.0.0.1,localhost'
@@ -14,5 +14,5 @@ services:
 #      - ../data/dataframes:/home/.meerkat/dataframes
 #      - ../meerkat:/meerkat/meerkat
     ports:
-      - 8000:8000
+      - 8001:8000
 #    network_mode: "host"
