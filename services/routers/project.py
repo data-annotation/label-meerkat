@@ -280,7 +280,8 @@ def trigger_project_train(project_id: int,
 
     current_model = label_res['current_model']
     new_model_id = uuid.uuid4().hex
-    project_with_label = project_data.join(label_data.set_index('id'), on='id')
+    project_with_label = label_data.merge(project_data, how='left', on='id')
+    # project_with_label = project_data.join(label_data.set_index('id'), on='id')
     data_columns = project_res['config'].get('columns', [])
     label_columns = label_res['config'].get('columns', [])
     columns = data_columns + label_columns

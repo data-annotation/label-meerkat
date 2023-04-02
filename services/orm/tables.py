@@ -118,7 +118,7 @@ def get_project_by_id(project_id: int, conn=None):
 
 def get_label_by_id(label_id: int, project_id: int = None, conn=None):
     conn = conn or engine.connect()
-    cond = [label_result.c.label_id == label_id]
+    cond = [label_result.c.id == label_id]
     if project_id:
         cond.append(label_result.c.project_id == project_id)
     label_res = (conn.execute(select(label_result.c.id,
