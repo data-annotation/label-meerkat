@@ -57,8 +57,8 @@ def prediction_model_define_input_2(example, label: list):
 
 
 def convert_to_features(example_batch):
-    input_encodings = tokenizer.batch_encode_plus(example_batch['input_text'], add_special_tokens=True, truncation=True, pad_to_max_length=True, max_length=512)
-    target_encodings = tokenizer.batch_encode_plus(example_batch['target_text'], add_special_tokens=True, truncation=True, pad_to_max_length=True, max_length=64)
+    input_encodings = tokenizer.t.batch_encode_plus(example_batch['input_text'], add_special_tokens=True, truncation=True, pad_to_max_length=True, max_length=512)
+    target_encodings = tokenizer.t.batch_encode_plus(example_batch['target_text'], add_special_tokens=True, truncation=True, pad_to_max_length=True, max_length=64)
 
     encodings = {
         'input_ids': input_encodings['input_ids'],

@@ -36,7 +36,7 @@ router = APIRouter(
 )
 
 
-@router.get("/")
+@router.get("")
 def project_list():
     """
     list all project
@@ -52,14 +52,19 @@ def project_list():
                                        func.json_object(
                                            'label_id', label_result.c.id,
                                            'user_id', label_result.c.user_id,
-                                           'config', label_result.c.config,
+                                           'config', func.json(label_result.c.config),
                                            'current_model', label_result.c.current_model,
                                            'create_time', label_result.c.create_time,
                                            'update_time', label_result.c.update_time
                                        )
                                    ).label('labels'))
-                            .select_from(j).group_by(project.c.id)).mappings().all()
-    return projects
+                            .select_from(j).group_by(project.c.id)).fetchall()
+    res = []
+    for p in projects:
+      p = p._asdict()
+      p['labels'] = json.loads(p['labels'])
+      res.append(p)
+    return res
 
 
 def get_project_and_label_by_project_id(project_id: int,
@@ -69,14 +74,14 @@ def get_project_and_label_by_project_id(project_id: int,
   通过project_id获取 project 和 label 信息
   """
   conn = coon or engine.connect()
-  project_res = dict(conn.execute(select(project.c.id,
-                                         project.c.name,
-                                         project.c.file_path,
-                                         project.c.config,
-                                         project.c.create_time,
-                                         project.c.update_time)
-                                  .where(project.c.id == project_id))
-                     .fetchone())
+  project_res = (conn.execute(select(project.c.id,
+                                     project.c.name,
+                                     project.c.file_path,
+                                     project.c.config,
+                                     project.c.create_time,
+                                     project.c.update_time)
+                              .where(project.c.id == project_id))
+                 .fetchone()._asdict())
   if not project_res:
     return None, None
 
@@ -84,21 +89,21 @@ def get_project_and_label_by_project_id(project_id: int,
   cond = [label_result.c.project_id == project_id]
   if label_id:
     cond.append(label_result.c.id == label_id)
-  label_res = dict(conn.execute(select(label_result.c.id,
-                                       label_result.c.name,
-                                       label_result.c.user_id,
-                                       label_result.c.project_id,
-                                       label_result.c.config,
-                                       label_result.c.extra,
-                                       label_result.c.last_model,
-                                       label_result.c.current_model,
-                                       label_result.c.create_time,
-                                       label_result.c.update_time,
-                                       label_result.c.file_path)
-                                .where(and_(label_result.c.project_id == project_id))
-                                .order_by(label_result.c.create_time)
-                                .limit(1))
-                   .fetchone())
+  label_res = (conn.execute(select(label_result.c.id,
+                                   label_result.c.name,
+                                   label_result.c.user_id,
+                                   label_result.c.project_id,
+                                   label_result.c.config,
+                                   label_result.c.extra,
+                                   label_result.c.last_model,
+                                   label_result.c.current_model,
+                                   label_result.c.create_time,
+                                   label_result.c.update_time,
+                                   label_result.c.file_path)
+                            .where(and_(label_result.c.project_id == project_id))
+                            .order_by(label_result.c.create_time)
+                            .limit(1))
+               .fetchone()._asdict())
   return project_res, label_res
 
 
@@ -118,16 +123,20 @@ def get_single_project(project_id: int,
   if not project_res:
     response.status_code = 400
     return 'Project Not Found'
-
-  project_data = mk.read(os.path.join(project_base_path, f"{project_res['file_path']}.mk")).to_pandas()
-  total_num = len(project_data)
+  project_data_path = os.path.join(project_base_path, f"{project_res['file_path']}.mk")
+  if os.path.exists(project_data_path):
+    project_data = mk.read(project_data_path).to_pandas()
+    total_num = len(project_data)
+  else:
+    total_num = 0
 
   res = {'project_meta': project_res,
          'label_meta': label_res,
          'data_num': total_num,
          'label_num': 0}
   if with_label and label_res:
-    label_data = mk.read(os.path.join(label_base_path, f"{label_res['file_path']}.mk")).to_pandas()
+    label_data_path = os.path.join(label_base_path, f"{label_res['file_path']}.mk")
+    label_data = mk.read(label_data_path).to_pandas()
     label_column = label_res['config']['label_column']
     label_data[label_column] = label_data[label_column].astype(int)
     merged_data = project_data.iloc[size*num:size*(num+1)].join(label_data.set_index('id'), on='id')
@@ -178,7 +187,7 @@ def trigger_project_train(project_id: int,
 
 
 
-@router.get("/labels/{project_id}")
+@router.get("/{project_id}/labels")
 def list_label_result_of_a_project(project_id: int):
   """
   get label result list for a project

@@ -96,16 +96,8 @@ def get_project_data(project_id: int,
                                   "sentence_column_2": "hypothesis"},
                        "current_model": None,
                        "create_time": "2023-03-30 15:24:58",
-                       "update_time": "2023-03-30 15:24:58"}
+                       "update_time": "2023-03-30 15:24:58"}]}
 
-
-@router.get("projects/{project_id}/models")
-def get_project_models(response: Response,
-                       project_id: int) -> Any:
-  """get project models"""
-
-  return {'saved_file': 'project/e58c6ee090cb4f698a3c8cbba4564caa.mk',
-          'project_id': 2}
 
 
 @router.post("projects/{project_id}/training")

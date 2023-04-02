@@ -6,9 +6,7 @@ ARG PYPI=https://pypi.tuna.tsinghua.edu.cn/simple/
 
 COPY requirement-anno.txt requirement.txt
 
-RUN pip install -r requirement.txt  -i ${PYPI}
-
-RUN --mount=type=cache,mode=0777,target=/Users/jin/Library/Caches/pip pip install -r requirement.txt  -i ${PYPI}
+RUN --mount=type=cache,mode=0777,target=/Users/jin/Library/Caches/pip pip install -r requirement.txt -i ${PYPI}
 
 RUN echo "deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free \ndeb https://mirrors.tuna.tsinghua.edu.cn/debian-security bullseye-security main contrib non-free" > /etc/apt/sources.list
 RUN apt-get update
@@ -22,6 +20,6 @@ RUN mkdir label && \
     mkdir project && \
     mkdir data
 
-CMD
+CMD uvicorn services.main:app
 
 
