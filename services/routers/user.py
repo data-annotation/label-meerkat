@@ -18,10 +18,14 @@ def new_user(name: str, token: str = None):
 
     """
     token = token or name
-
-    conn = engine.connect()
-    conn.execute(user.insert(), {"name": name, "token": token})
-    return True
+    with engine.begin() as conn:
+        res = conn.execute(user
+                           .insert()
+                           .values({"name": name, "token": token})
+                           .returning(user.c.id,
+                                      user.c.name,
+                                      user.c.token)).fetchone()._asdict()
+    return res
 
 
 @router.get("/")
@@ -31,11 +35,10 @@ def user_list():
 
     """
     conn = engine.connect()
-    users = conn.execute(select(user.c.name, user.c.create_time, user.c.update_time))
-    res = []
-    for name, create_time, update_time in users:
-        res.append({'name': name,
-                    'create_time': create_time,
-                    'update_time': update_time})
-    return res
+    users = conn.execute(select(user.c.name,
+                                user.c.id,
+                                user.c.create_time,
+                                user.c.update_time,
+                                user.c.token)).mappings().all()
+    return users
 

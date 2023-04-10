@@ -76,7 +76,6 @@ model_info = Table(
     "model_info",
     metadata_obj,
     Column("id", Integer, Sequence("label_id_seq"), index=True, primary_key=True),
-    Column("name", String, nullable=False, index=True, unique=True),
     Column("model_uuid", String, nullable=False, index=True, unique=True),
     Column("create_time", DateTime(timezone=True), server_default=func.now()),
     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
@@ -84,7 +83,6 @@ model_info = Table(
     Column("extra", JSON, default=dict(), nullable=False,
            server_default=text("'{}'")),
     Column("iteration", Integer, default=1),
-    Column("last_model", String)
 )
 
 # label_config = Table(

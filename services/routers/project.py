@@ -30,6 +30,7 @@ from ..model.AL import one_training_iteration
 from ..orm.tables import get_label_by_id
 from ..orm.tables import get_labels_by_project_id
 from ..orm.tables import get_project_by_id
+from ..orm.tables import model_info
 from ..orm.tables import user
 
 router = APIRouter(
@@ -261,7 +262,7 @@ def get_single_project(project_id: int,
 def trigger_project_train(project_id: int,
                           background_tasks: BackgroundTasks,
                           response: Response,
-                          label_id: int = None):
+                          label_id: int):
     """
     get a project data
 
@@ -284,13 +285,27 @@ def trigger_project_train(project_id: int,
     # project_with_label = project_data.join(label_data.set_index('id'), on='id')
     data_columns = project_res['config'].get('columns', [])
     label_columns = label_res['config'].get('columns', [])
-    columns = data_columns + label_columns
+    columns = set(data_columns + label_columns)
     all_labeled_project_data = project_with_label[project_with_label['label'].notnull()][columns]
 
+    with engine.begin() as conn:
+        conn.execute(label_result
+                     .update()
+                     .where(label_result.c.id == label_id)
+                     .values({"last_model": label_result.c.current_model,
+                              "current_model": new_model_id,
+                              "iteration": label_result.c.iteration+1}))
+        # conn.execute(model_info
+        #              .insert()
+        #              .values({"label_id": label_id,
+        #                       "model_uuid": new_model_id,
+        #                       "extra": {'train_begin': True},
+        #                       "config": label_config,
+        #                       "iteration": new_label_uuid}))
     background_tasks.add_task(one_training_iteration,
                               column_1=data_columns[0],
                               column_2=data_columns[1],
-
+                              explanation_column=label_columns[-1],
                               labeled_data=all_labeled_project_data,
                               model_id=new_model_id,
                               old_model_id=current_model,

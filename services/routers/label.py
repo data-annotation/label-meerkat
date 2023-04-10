@@ -158,33 +158,30 @@ def create_label_with_train(project_id: int,
           'model_id': model_uuid}
 
 
-@router.get("/{label_result_id}")
-def get_label_result(label_result_id: int):
-  """
-  get label result
+@router.get("/{label_id}")
+def get_label_result(label_id: int,
+                     with_label_data: bool = False):
+    """
+    get label result
 
-  """
-  conn = engine.connect()
-  sql = select(label_result.c.id,
-               label_result.c.name,
-               label_result.c.user_id,
-               label_result.c.project_id,
-               label_result.c.config,
-               label_result.c.create_time,
-               label_result.c.update_time,
-               label_result.c.file_path).where(label_result.c.id == label_result_id)
+    """
+    conn = engine.connect()
+    sql = select(label_result.c.id,
+                 label_result.c.name,
+                 label_result.c.user_id,
+                 label_result.c.project_id,
+                 label_result.c.config,
+                 label_result.c.create_time,
+                 label_result.c.update_time,
+                 label_result.c.file_path).where(label_result.c.id == label_id)
 
-  res = conn.execute(sql).fetchone()
-  label_full = mk.read(os.path.join(label_base_path, f'{res[7]}.mk')).to_pandas().to_dict()
+    res = conn.execute(sql).fetchone()._asdict()
+    label_full = mk.read(os.path.join(label_base_path, f'{res["file_path"]}.mk')).to_pandas()
+    if with_label_data:
+        res['label_data_num'] = len(label_full)
+        res['label_data'] = label_full.to_dict()
 
-  return {'id': res[0],
-          'name': res[1],
-          'user_id': res[2],
-          'project_id': res[3],
-          'config': res[4],
-          'create_time': res[5],
-          'update_time': res[6],
-          'labels': label_full}
+    return res
 
 
 @router.patch("/{label_result_id}")
@@ -238,85 +235,63 @@ def get_label_state(label_result_id: int):
 @router.patch("/{label_id}")
 def only_update_label(label_id: int,
                       label_data: dict = Body(embed=True)):
-  """
-  update a label result
+    """
+    update a label result
 
-  """
-  coon = engine.connect()
-  label_res = dict(coon.execute(select(label_result.c.id,
-                                       label_result.c.name,
-                                       label_result.c.user_id,
-                                       label_result.c.project_id,
-                                       label_result.c.config,
-                                       label_result.c.extra,
-                                       label_result.c.create_time,
-                                       label_result.c.update_time,
-                                       label_result.c.file_path)
-                                .where(label_result.c.label_id == label_id)
-                                .order_by(label_result.c.create_time)
-                                .limit(1))
-                   .fetchone())
+    """
+    coon = engine.connect()
+    label_res = dict(coon.execute(select(label_result.c.id,
+                                         label_result.c.name,
+                                         label_result.c.user_id,
+                                         label_result.c.project_id,
+                                         label_result.c.config,
+                                         label_result.c.extra,
+                                         label_result.c.create_time,
+                                         label_result.c.update_time,
+                                         label_result.c.file_path)
+                                  .where(label_result.c.label_id == label_id)
+                                  .order_by(label_result.c.create_time)
+                                  .limit(1))
+                     .fetchone())
 
-  if not label_res:
-    raise HTTPException(status_code=400,
-                        detail="Labels can not found!")
+    if not label_res:
+        raise HTTPException(status_code=400,
+                            detail="Labels can not found!")
 
-  new_model_id = uuid.uuid4().hex
-  label_mk_df = mk.read(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
-  label_data = pd.DataFrame(label_data)
+    new_model_id = uuid.uuid4().hex
+    label_mk_df = mk.read(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
+    label_data = pd.DataFrame(label_data)
 
-  label_full = pd.concat([label_mk_df.to_pandas(), label_data])
-  label_full_mk = mk.from_pandas(label_full, index=False)
-  label_full_mk.write(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
+    label_full = pd.concat([label_mk_df.to_pandas(), label_data])
+    label_full_mk = mk.from_pandas(label_full, index=False)
+    label_full_mk.write(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
 
-  sql = (label_result
-         .update()
-         .where(label_result.c.id == label_res['id'])
-         .values({'last_model': label_result.c.current_model,
-                  'current_model': new_model_id}))
-  coon.execute(sql)
+    sql = (label_result
+           .update()
+           .where(label_result.c.id == label_res['id'])
+           .values({'last_model': label_result.c.current_model,
+                    'current_model': new_model_id}))
+    coon.execute(sql)
 
-  return {'label_id': label_res['id'],
-          'model_id': new_model_id}
+    return {'label_id': label_res['id'],
+            'label_data_num': len(label_full)}
 
 
-@router.patch("/{label_id}/models")
-def only_update_label(label_id: int):
-  """
-  update a label result
+@router.get("/{label_id}/models")
+def get_project_models(label_id: int):
+    """
+    update a label result
 
-  """
-  coon = engine.connect()
-  models = dict(coon.execute(select(model_info.c.id,
-                                    model_info.c.name,
-                                    model_info.c.model_path,
-                                    model_info.c.extra,
-                                    model_info.c.last_model,
-                                    model_info.c.create_time,
-                                    model_info.c.update_time,
+    """
+    coon = engine.connect()
+    models = coon.execute(select(model_info.c.id,
+                                 model_info.c.extra,
+                                 model_info.c.label_id,
+                                 model_info.c.model_uuid,
+                                 model_info.c.iteration,
+                                 model_info.c.create_time,
+                                 model_info.c.update_time)
+                          .where(model_info.c.label_id == label_id)
+                          .order_by(model_info.c.update_time.desc())).mappings().all()
 
-                                    model_info.c.file_path)
-                             .where(model_info.c.label_id == label_id)
-                             .order_by(label_result.c.create_time)))
-
-  if not label_res:
-    raise HTTPException(status_code=400,
-                        detail="Labels can not found!")
-
-  new_model_id = uuid.uuid4().hex
-  label_mk_df = mk.read(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
-  label_data = pd.DataFrame(label_data)
-
-  label_full = pd.concat([label_mk_df.to_pandas(), label_data])
-  label_full_mk = mk.from_pandas(label_full, index=False)
-  label_full_mk.write(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
-
-  sql = (label_result
-         .update()
-         .where(label_result.c.id == label_res['id'])
-         .values({'last_model': label_result.c.current_model,
-                  'current_model': new_model_id}))
-  coon.execute(sql)
-
-  return {'label_id': label_res['id'],
-          'model_id': new_model_id}
+    return models
