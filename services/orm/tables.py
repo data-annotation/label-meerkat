@@ -65,7 +65,7 @@ label_result = Table(
     Column("config", JSON, nullable=False),
     Column("extra", JSON, default=dict(), nullable=False,
            server_default=text("'{}'")),
-    Column("iteration", Integer, default=1),
+    Column("iteration", Integer, default=0),
     Column("last_model", String),
     Column("current_model", String),
     Column("file_path", String,  unique=True, nullable=False)
@@ -129,6 +129,7 @@ def get_label_by_id(label_id: int, project_id: int = None, conn=None):
                                      label_result.c.current_model,
                                      label_result.c.create_time,
                                      label_result.c.update_time,
+                                     label_result.c.iteration,
                                      label_result.c.file_path)
                               .where(and_(*cond)))
                  .fetchone()._asdict())
@@ -152,7 +153,8 @@ engine = create_engine("sqlite:///test.db", echo=True)
 
 if __name__ == "__main__":
 
-    metadata_obj.create_all(engine)
+    # metadata_obj.create_all(engine)
+    model_info.create(engine)
     # ins = user.insert().values(name="jack", token="Jack Jones")
     # ins = project.insert().values(name="faire_tale_label", user_id=1, file_path="abc")
     # ins = label.insert().values(name="jack label", project_id=1, file_path="abc")

@@ -295,23 +295,23 @@ def trigger_project_train(project_id: int,
                      .values({"last_model": label_result.c.current_model,
                               "current_model": new_model_id,
                               "iteration": label_result.c.iteration+1}))
-        # conn.execute(model_info
-        #              .insert()
-        #              .values({"label_id": label_id,
-        #                       "model_uuid": new_model_id,
-        #                       "extra": {'train_begin': True},
-        #                       "config": label_config,
-        #                       "iteration": new_label_uuid}))
+        model_res = conn.execute(model_info
+                                 .insert()
+                                 .values({"label_id": label_id,
+                                          "model_uuid": new_model_id,
+                                          "extra": {'train_begin': True},
+                                          "iteration": label_res['iteration']})
+                                 .returning(model_info.c.id.label('model_id'),
+                                            model_info.c.model_uuid)).fetchone()._asdict()
     background_tasks.add_task(one_training_iteration,
                               column_1=data_columns[0],
                               column_2=data_columns[1],
                               explanation_column=label_columns[-1],
                               labeled_data=all_labeled_project_data,
                               model_id=new_model_id,
-                              old_model_id=current_model,
-                              )
+                              old_model_id=current_model)
 
-    return new_model_id
+    return model_res
 
 
 @router.get("/{project_id}/labels")
