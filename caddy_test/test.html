@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>just test</title>
+</head>
+<body>
+	<button onclick="sendRequest()"> test cors </button>
+
+	<script>
+		function sendRequest() {
+			var xhr = new XMLHttpRequest();
+			xhr.open('GET', 'http://loc.al/api/projects', true);
+			xhr.onreadystatechange = function() {
+				if (xhr.readyState === 4 && xhr.status === 200) {
+					console.log(xhr.responseText);
+				}
+			};
+			xhr.send();
+		}
+	</script>
+</body>
+</html>

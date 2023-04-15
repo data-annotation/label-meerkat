@@ -1,3 +1,6 @@
+from datasets import Dataset
+
+
 def custom_concatenate(dataset1, dataset2, dataset3):
   new_dataset = {}
 
