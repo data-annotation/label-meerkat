@@ -22,7 +22,6 @@ def one_training_iteration(labeled_data: Union[list, dict],
                            column_2: str = 'hypothesis',
                            explanation_column: str = 'explanation_1',
                            labels: list = None,
-                           label_id: int = None,
                            model_id: str = 'test_model',
                            old_model_id: str = None):
     labels = labels or ['entailment', 'neutral', 'contradiction']

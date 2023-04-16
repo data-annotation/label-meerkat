@@ -82,7 +82,8 @@ model_info = Table(
     Column("label_id", Integer, ForeignKey("label_result.id"), nullable=False),
     Column("extra", JSON, default=dict(), nullable=False,
            server_default=text("'{}'")),
-    Column("iteration", Integer, default=1),
+    Column("status", Integer, default=1, comment="0表示未在训练，1表示正在训练"),
+    Column("iteration", Integer, default=1, comment="模型的迭代次数"),
 )
 
 # label_config = Table(
@@ -136,6 +137,27 @@ def get_label_by_id(label_id: int, project_id: int = None, conn=None):
     return label_res if label_res else None
 
 
+def get_single_project_label(project_id: int, label_id: int = None):
+    if label_id:
+      return get_label_by_id(label_id=label_id)
+    else:
+      return (conn.execute(select(label_result.c.id,
+                                  label_result.c.name,
+                                  label_result.c.user_id,
+                                  label_result.c.project_id,
+                                  label_result.c.config,
+                                  label_result.c.extra,
+                                  label_result.c.last_model,
+                                  label_result.c.current_model,
+                                  label_result.c.create_time,
+                                  label_result.c.update_time,
+                                  label_result.c.iteration,
+                                  label_result.c.file_path)
+                           .where(and_(label_result.c.project_id == project_id))
+                           .order_by(label_result.c.update_time.desc()))
+              .fetchone()._asdict()) or None
+
+
 def get_labels_by_project_id(project_id: int, conn=None):
     conn = conn or engine.connect()
     sql = select(label_result.c.id,
@@ -147,6 +169,21 @@ def get_labels_by_project_id(project_id: int, conn=None):
                  label_result.c.update_time).where(label_result.c.project_id == project_id)
 
     return conn.execute(sql).mappings().all()
+
+
+def get_models_by_label_id(label_id: int, conn=None):
+  conn = conn or engine.connect()
+  sql = (select(model_info.c.id,
+                model_info.c.model_uuid,
+                model_info.c.status,
+                model_info.c.label_id,
+                model_info.c.extra,
+                model_info.c.create_time,
+                model_info.c.update_time)
+         .where(model_info.c.label_id == label_id)
+         .order_by(model_info.c.update_time.desc()))
+
+  return conn.execute(sql).mappings().all()
 
 
 engine = create_engine("sqlite:///test.db", echo=True)

@@ -24,3 +24,5 @@ num_epochs_rg = 10
 num_epochs_p = 1
 learning_rate = 1e-4
 per_device_batch_size = 10
+
+max_model_num_for_one_label = 2

@@ -13,25 +13,28 @@ import pandas as pd
 from fastapi import APIRouter
 from fastapi import BackgroundTasks
 from fastapi import Form
+from fastapi import HTTPException
 from fastapi import Response
 from fastapi import UploadFile
 from sentence_splitter import SentenceSplitter
-from sqlalchemy import and_
 from sqlalchemy import func
 from sqlalchemy import select
 
 from services.config import label_base_path
+from services.config import max_model_num_for_one_label
 from services.config import project_base_path
+from services.const import ModelStatus
+from services.model.AL import one_training_iteration
+from services.orm.tables import engine
+from services.orm.tables import get_label_by_id
+from services.orm.tables import get_labels_by_project_id
+from services.orm.tables import get_models_by_label_id
+from services.orm.tables import get_project_by_id
 from services.orm.tables import label_result
+from services.orm.tables import model_info
 from services.orm.tables import project
-from . import encode_model
-from . import engine
-from ..model.AL import one_training_iteration
-from ..orm.tables import get_label_by_id
-from ..orm.tables import get_labels_by_project_id
-from ..orm.tables import get_project_by_id
-from ..orm.tables import model_info
-from ..orm.tables import user
+from services.orm.tables import user
+from services.routers import select_model_for_train
 
 router = APIRouter(
     prefix="/projects",
@@ -262,17 +265,43 @@ def get_single_project(project_id: int,
 def trigger_project_train(project_id: int,
                           background_tasks: BackgroundTasks,
                           response: Response,
-                          label_id: int):
+                          label_id: int = None):
     """
     get a project data
 
     """
     project_res = get_project_by_id(project_id)
-    label_res = get_label_by_id(label_id=label_id, project_id=project_id)
-
     if not project_res:
-        response.status_code = 400
-        return 'Project Not Found'
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    label_res = get_label_by_id(label_id=label_id, project_id=project_id)
+    if not project_res:
+      raise HTTPException(status_code=404, detail="Label not found")
+
+    label_id = label_res['id']
+    model_res = get_models_by_label_id(label_id=label_id)
+    if not model_res:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    selected_model, model_num = select_model_for_train(model_res)
+    model_id = uuid.uuid4().hex
+    model_flag = 0
+    if not selected_model:
+      if model_num >= max_model_num_for_one_label:
+          raise HTTPException(status_code=400, detail="Can not create more models and all model is busy")
+      else:
+        with engine.begin() as conn:
+          model_flag = 1
+          selected_model = conn.execute(model_info
+                                        .insert()
+                                        .values({"label_id": label_id,
+                                                 "model_uuid": model_id,
+                                                 "extra": {'train_begin': True},
+                                                 "status": ModelStatus.free.value,
+                                                 "iteration": label_res['iteration']})
+                                        .returning(model_info.c.id.label('model_id'),
+                                                   model_info.c.model_uuid)).fetchone()._asdict()
+    model_id = selected_model['model_uuid']
 
     project_data = mk.read(os.path.join(project_base_path,
                                         f'{project_res["file_path"]}.mk')).to_pandas()
@@ -280,7 +309,7 @@ def trigger_project_train(project_id: int,
                                       f'{label_res["file_path"]}.mk')).to_pandas()
 
     current_model = label_res['current_model']
-    new_model_id = uuid.uuid4().hex
+
     project_with_label = label_data.merge(project_data, how='left', on='id')
     # project_with_label = project_data.join(label_data.set_index('id'), on='id')
     data_columns = project_res['config'].get('columns', [])
@@ -293,23 +322,15 @@ def trigger_project_train(project_id: int,
                      .update()
                      .where(label_result.c.id == label_id)
                      .values({"last_model": label_result.c.current_model,
-                              "current_model": new_model_id,
+                              "current_model": model_id,
                               "iteration": label_result.c.iteration+1}))
-        model_res = conn.execute(model_info
-                                 .insert()
-                                 .values({"label_id": label_id,
-                                          "model_uuid": new_model_id,
-                                          "extra": {'train_begin': True},
-                                          "iteration": label_res['iteration']})
-                                 .returning(model_info.c.id.label('model_id'),
-                                            model_info.c.model_uuid)).fetchone()._asdict()
     background_tasks.add_task(one_training_iteration,
+                              labeled_data=all_labeled_project_data,
                               column_1=data_columns[0],
                               column_2=data_columns[1],
                               explanation_column=label_columns[-1],
-                              labeled_data=all_labeled_project_data,
-                              model_id=new_model_id,
-                              old_model_id=current_model)
+                              model_id=model_id,
+                              old_model_id=model_id if model_flag else None)
 
     return model_res
 

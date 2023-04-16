@@ -1,27 +1,13 @@
 import json
 import os.path
-import uuid
-from typing import Union
 
-import pandas as pd
 from fastapi import APIRouter
-from fastapi import Body
-from fastapi import HTTPException
-from pydantic import BaseModel
 from sqlalchemy import select
 
-import meerkat as mk
-from services.config import label_base_path
-from services.config import model_path
 from services.config import predict_result_path
-from services.config import project_base_path
-from services.model.AL import one_training_iteration
-from services.model.arch import predict_pipeline
+from services.orm.tables import engine
 from services.orm.tables import label_result
-from services.orm.tables import project
-from services.orm.tables import user
-from services.routers import engine
-from fastapi import BackgroundTasks
+from services.orm.tables import model_info
 
 
 router = APIRouter(
@@ -49,20 +35,16 @@ def list_label_result_of_a_project(label_id: int):
   return res
 
 
-
 @router.get("/models/{model_id}/status")
 def get_model_status(model_id: int):
   """
-  get label result list for a project
+  get model info by model id
 
   """
 
   conn = engine.connect()
-  sql = select(label_result.c.id,
-               label_result.c.current_model).where(label_result.c.id == label_id)
+  sql = select(model_info.c.id,
+               model_info.c.current_model).where(model_info.c.id == model_id)
 
-  label_record = conn.execute(sql).fetchone()
-  result_path = os.path.join(predict_result_path, str(label_id))
-  with open(result_path+f'/{label_record[1]}.json', 'r') as f:
-    res = json.load(f)
-  return res
+  model_info_record = conn.execute(sql).fetchone()._asdict()
+  return model_info_record

@@ -29,10 +29,12 @@ from transformers import TrainerCallback
 
 from services.config import model_path
 from services.config import predict_result_path
+from services.const import ModelStatus
 from services.model import device
 from services.model.util.model_input import prediction_model_preprocessing
 from services.model.util.model_input import rationale_model_preprocessing
 from services.orm.tables import label_result
+from services.orm.tables import model_info
 
 
 logger = logging.getLogger(__name__)
@@ -40,45 +42,49 @@ logger = logging.getLogger(__name__)
 
 class MyCallback(TrainerCallback):
   "A callback that prints a message at the beginning of training"
-  label_res = dict()
+  model_res = dict()
   engine = create_engine("sqlite:///test.db", echo=True)
   @property
-  def label_res_info(self):
-    if not self.label_res:
+  def model_res_info(self):
+    if not self.model_res:
       conn = self.engine.connect()
-      sql = select(label_result.c.id,
-                   label_result.c.current_model).where(label_result.c.current_model == self.model_id)
-      res = conn.execute(sql).fetchone()
+      sql = (select(model_info.c.id,
+                    model_info.c.model_uuid,
+                    model_info.c.label_id,
+                    model_info.c.extra,
+                    model_info.c.iteration,
+                    model_info.c.current_model)
+             .where(model_info.c.model_uuid == self.model_id))
+      res = conn.execute(sql).fetchone()._asdict()
       if res:
-        self.label_res = {'label_id': res[0], 'model_id': res[1]}
-      else:
-        return None
-    return self.label_res
+        self.model_res = res
+    return self.model_res
 
-  def __init__(self, model_id: str = None, total_steps: int = 1, current_step: int = 1):
+  def __init__(self, model_id: str, total_steps: int = 1, current_step: int = 1):
     self.model_id = model_id
     self.total_steps = total_steps
     self.current_step = current_step
 
   def on_train_begin(self, args, state, control, **kwargs):
-    if self.label_res_info:
-      sql = (label_result
+    if self.model_res_info:
+      sql = (model_info
              .update()
-             .where(label_result.c.id == self.label_res_info['label_id'])
-             .values({'extra': func.json_patch(label_result.c.extra,
+             .where(model_info.c.model_uuid == self.model_id)
+             .values({'extra': func.json_patch(model_info.c.extra,
                                                json.dumps({'train_begin': True,
                                                            'total_steps': self.total_steps,
                                                            'current_step': self.current_step,
                                                            'train_end': False,
-                                                           'begin_time': datetime.datetime.utcnow().isoformat()}))}))
+                                                           'begin_time': datetime.datetime.utcnow().isoformat()})),
+                      'status': ModelStatus.running.value}))
       self.engine.connect().execute(sql)
     print("######### Training begin ###########")
 
   def on_epoch_begin(self, args, state, control, **kwargs):
-    if self.label_res_info:
-      sql = (label_result
+    if self.model_res_info:
+      sql = (model_info
              .update()
-             .where(label_result.c.id == self.label_res_info['label_id'])
+             .where(model_info.c.model_uuid == self.model_id)
              .values({'extra': func.json_set(label_result.c.extra,
                                              '$.progress',
                                              f'{state.epoch}/{state.num_train_epochs}')}))
@@ -86,18 +92,19 @@ class MyCallback(TrainerCallback):
     print(state.epoch, '#####', state.num_train_epochs)
 
   def on_train_end(self, args, state, control, **kwargs):
-    if self.label_res_info:
+    if self.model_res_info:
       train_info = {
         'current_step': self.current_step
       }
       if self.current_step == self.total_steps:
         train_info.update({'train_end': True,
                            'end_time': datetime.datetime.utcnow().isoformat()})
-      sql = (label_result
+      sql = (model_info
              .update()
-             .where(label_result.c.id == self.label_res_info['label_id'])
-             .values({'extra': func.json_patch(label_result.c.extra,
-                                               json.dumps(train_info))}))
+             .where(model_info.c.model_uuid == self.model_id)
+             .values({'extra': func.json_patch(model_info.c.extra,
+                                               json.dumps(train_info)),
+                      'status': ModelStatus.free.value}))
       self.engine.connect().execute(sql)
     print("######### Training End ###########")
 
@@ -189,11 +196,11 @@ def finetune(config_json, model_id: str = None, total_steps: int = 1, current_st
     )
 
   # Setup logging
-  logging.basicConfig(
-      format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-      datefmt="%m/%d/%Y %H:%M:%S",
-      level=logging.INFO if training_args.local_rank in [-1, 0] else logging.WARN,
-  )
+  # logging.basicConfig(
+  #     format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
+  #     datefmt="%m/%d/%Y %H:%M:%S",
+  #     level=logging.INFO if training_args.local_rank in [-1, 0] else logging.WARN,
+  # )
   logger.warning(
       "Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
       training_args.local_rank,
@@ -212,7 +219,6 @@ def finetune(config_json, model_id: str = None, total_steps: int = 1, current_st
   # Distributed training:
   # The .from_pretrained methods guarantee that only one local process can concurrently
   # download model & vocab.
-
 
   tokenizer = T5Tokenizer.from_pretrained(
       model_args.tokenizer_name if model_args.tokenizer_name else model_args.model_name_or_path,
