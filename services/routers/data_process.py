@@ -2,27 +2,26 @@ import io
 import json
 import os
 import uuid
+import zipfile
 from enum import Enum
 from typing import List
 from typing import Union
-import zipfile
 
+import meerkat as mk
 import numpy as np
 import pandas as pd
 from fastapi import APIRouter
-from fastapi import Response
 from fastapi import Form
+from fastapi import Response
 from fastapi import UploadFile
-from pydantic import BaseModel
 from sentence_splitter import SentenceSplitter
 from sqlalchemy import select
 
-import meerkat as mk
-from . import engine
-from . import encode_model
-from ..config import project_base_path
-from ..orm.tables import project
-from ..orm.tables import user
+from services.config import project_base_path
+from services.orm.tables import engine
+from services.orm.tables import project
+from services.orm.tables import user
+from services.routers import encode_model
 
 router = APIRouter(
     prefix="/file",

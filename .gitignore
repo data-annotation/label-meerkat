@@ -1,4 +1,9 @@
 
 
-.idea
-model_data
+.idea/
+
+model_data/
+
+project/
+
+all-MiniLM-L6-v2/

@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from sqlalchemy import select
 
-from . import engine
-from ..orm.tables import user
+from services.orm.tables import engine
+from services.orm.tables import user
 
 router = APIRouter(
     prefix="/users",

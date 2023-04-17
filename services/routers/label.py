@@ -2,25 +2,24 @@ import os.path
 import uuid
 from typing import Union
 
+import meerkat as mk
 import pandas as pd
 from fastapi import APIRouter
+from fastapi import BackgroundTasks
 from fastapi import Body
 from fastapi import HTTPException
 from pydantic import BaseModel
 from sqlalchemy import select
 
-import meerkat as mk
 from services.config import label_base_path
-from services.config import model_path
 from services.config import project_base_path
 from services.model.AL import one_training_iteration
 from services.model.arch import predict_pipeline
+from services.orm.tables import engine
 from services.orm.tables import label_result
 from services.orm.tables import model_info
 from services.orm.tables import project
 from services.orm.tables import user
-from services.routers import engine
-from fastapi import BackgroundTasks
 
 router = APIRouter(
     prefix="/labels",
