@@ -37,5 +37,7 @@ jobs:
           platforms: linux/amd64
           push: true
           context: .
+          build-args: |
+            PYPI=https://pypi.org/simple
           tags: |
             ghcr.io/${{ env.user_lc }}/anno:latest
