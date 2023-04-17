@@ -40,4 +40,4 @@ jobs:
           build-args: |
             PYPI=https://pypi.org/simple
           tags: |
-            ghcr.io/${{ env.user_lc }}/anno:latest
+            ghcr.io/${{ env.user_lc }}/label-meerkat:latest
