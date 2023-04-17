@@ -8,6 +8,8 @@ jobs:
   reusable-build-push:
     name: Build and push docker
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
     steps:
       -
         name: Checkout
