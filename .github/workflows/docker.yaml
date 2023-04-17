@@ -13,7 +13,9 @@ jobs:
         name: lowercase username
         env:
           owner: ${{ github.repository_owner }}
-        run: echo "user_lc=${owner,,}" >> ${GITHUB_ENV}
+        run: |
+          echo "user_lc=${owner,,}" >> ${GITHUB_ENV}
+          cp docker/Dockerfile .
         shell: bash
       -
         name: Checkout
@@ -34,5 +36,6 @@ jobs:
         with:
           platforms: linux/amd64
           push: true
+          context: .
           tags: |
             ghcr.io/${{ env.user_lc }}/anno:latest
