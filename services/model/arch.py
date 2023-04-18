@@ -52,8 +52,7 @@ class MyCallback(TrainerCallback):
                     model_info.c.model_uuid,
                     model_info.c.label_id,
                     model_info.c.extra,
-                    model_info.c.iteration,
-                    model_info.c.current_model)
+                    model_info.c.iteration)
              .where(model_info.c.model_uuid == self.model_id))
       res = conn.execute(sql).fetchone()._asdict()
       if res:
@@ -61,11 +60,13 @@ class MyCallback(TrainerCallback):
     return self.model_res
 
   def __init__(self, model_id: str, total_steps: int = 1, current_step: int = 1):
+    print('#####', model_id, total_steps, current_step, '#####')
     self.model_id = model_id
     self.total_steps = total_steps
     self.current_step = current_step
 
   def on_train_begin(self, args, state, control, **kwargs):
+    print('#####', self.model_id, self.total_steps, self.current_step, '#####')
     if self.model_res_info:
       sql = (model_info
              .update()
@@ -76,19 +77,33 @@ class MyCallback(TrainerCallback):
                                                            'current_step': self.current_step,
                                                            'train_end': False,
                                                            'begin_time': datetime.datetime.utcnow().isoformat()})),
-                      'status': ModelStatus.running.value}))
-      self.engine.connect().execute(sql)
+                      'status': 1}))
+      with self.engine.begin() as conn:
+        conn.execute(sql)
     print("######### Training begin ###########")
 
-  def on_epoch_begin(self, args, state, control, **kwargs):
+  # def on_epoch_begin(self, args, state, control, **kwargs):
+  #   if self.model_res_info:
+  #     sql = (model_info
+  #            .update()
+  #            .where(model_info.c.model_uuid == self.model_id)
+  #            .values({'extra': func.json_set(model_info.c.extra,
+  #                                            '$.progress',
+  #                                            f'{state.epoch}/{state.num_train_epochs}')}))
+  #     with self.engine.begin() as conn:
+  #       conn.execute(sql)
+  #   print(state.epoch, '#####', state.num_train_epochs)
+
+  def on_epoch_end(self, args, state, control, **kwargs):
     if self.model_res_info:
       sql = (model_info
              .update()
              .where(model_info.c.model_uuid == self.model_id)
-             .values({'extra': func.json_set(label_result.c.extra,
+             .values({'extra': func.json_set(model_info.c.extra,
                                              '$.progress',
                                              f'{state.epoch}/{state.num_train_epochs}')}))
-      self.engine.connect().execute(sql)
+      with self.engine.begin() as conn:
+        conn.execute(sql)
     print(state.epoch, '#####', state.num_train_epochs)
 
   def on_train_end(self, args, state, control, **kwargs):
@@ -96,16 +111,20 @@ class MyCallback(TrainerCallback):
       train_info = {
         'current_step': self.current_step
       }
+      status = 1
       if self.current_step == self.total_steps:
         train_info.update({'train_end': True,
+                           'train_start': False,
                            'end_time': datetime.datetime.utcnow().isoformat()})
+        status = 0
       sql = (model_info
              .update()
              .where(model_info.c.model_uuid == self.model_id)
              .values({'extra': func.json_patch(model_info.c.extra,
                                                json.dumps(train_info)),
-                      'status': ModelStatus.free.value}))
-      self.engine.connect().execute(sql)
+                      'status': status}))
+      with self.engine.begin() as conn:
+        conn.execute(sql)
     print("######### Training End ###########")
 
 # prepares lm_labels from target_ids, returns examples with keys as expected by the forward method

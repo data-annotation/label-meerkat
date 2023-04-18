@@ -17,6 +17,8 @@ from sqlalchemy import select
 from sqlalchemy import text
 from sqlalchemy import create_engine
 
+from services.const import ModelStatus
+
 metadata_obj = MetaData()
 import pprint
 
@@ -137,9 +139,10 @@ def get_label_by_id(label_id: int, project_id: int = None, conn=None):
     return label_res if label_res else None
 
 
-def get_single_project_label(project_id: int, label_id: int = None):
+def get_single_project_label(project_id: int, label_id: int = None, conn = None):
+    conn = conn or engine.connect()
     if label_id:
-      return get_label_by_id(label_id=label_id)
+      return get_label_by_id(label_id=label_id, conn=conn)
     else:
       return (conn.execute(select(label_result.c.id,
                                   label_result.c.name,
@@ -186,12 +189,32 @@ def get_models_by_label_id(label_id: int, conn=None):
   return conn.execute(sql).mappings().all()
 
 
+def create_new_model(label_id: int,
+                     model_id: str,
+                     status: ModelStatus = ModelStatus.free.value,
+                     extra: dict = None,
+                     iteration: int = 1,
+                     conn=None):
+  conn = conn or engine.connect()
+  res = conn.execute(model_info
+                     .insert()
+                     .values({"label_id": label_id,
+                              "model_uuid": model_id,
+                              "extra": extra or dict(),
+                              "status": status,
+                              "iteration": iteration})
+                     .returning(model_info.c.id.label('model_id'),
+                                model_info.c.model_uuid)).fetchone()._asdict()
+
+  return res
+
+
 engine = create_engine("sqlite:///test.db", echo=True)
 
 if __name__ == "__main__":
 
-    # metadata_obj.create_all(engine)
-    model_info.create(engine)
+    metadata_obj.create_all(engine)
+    # model_info.create(engine)
     # ins = user.insert().values(name="jack", token="Jack Jones")
     # ins = project.insert().values(name="faire_tale_label", user_id=1, file_path="abc")
     # ins = label.insert().values(name="jack label", project_id=1, file_path="abc")
@@ -217,6 +240,7 @@ if __name__ == "__main__":
             #                             "iteration": 1,
             #                             "file_path": "foo"}))
     except Exception as e:
+        print(e)
         print('init db wrong')
 
     # project_res = get_project_by_id(1)

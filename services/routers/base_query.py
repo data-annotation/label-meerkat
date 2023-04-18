@@ -44,7 +44,11 @@ def get_model_status(model_id: int):
 
   conn = engine.connect()
   sql = select(model_info.c.id,
-               model_info.c.current_model).where(model_info.c.id == model_id)
+               model_info.c.model_uuid,
+               model_info.c.label_id,
+               model_info.c.extra,
+               model_info.c.status,
+               model_info.c.iteration).where(model_info.c.id == model_id)
 
   model_info_record = conn.execute(sql).fetchone()._asdict()
   return model_info_record

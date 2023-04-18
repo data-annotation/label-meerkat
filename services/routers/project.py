@@ -25,11 +25,13 @@ from services.config import max_model_num_for_one_label
 from services.config import project_base_path
 from services.const import ModelStatus
 from services.model.AL import one_training_iteration
+from services.orm.tables import create_new_model
 from services.orm.tables import engine
 from services.orm.tables import get_label_by_id
 from services.orm.tables import get_labels_by_project_id
 from services.orm.tables import get_models_by_label_id
 from services.orm.tables import get_project_by_id
+from services.orm.tables import get_single_project_label
 from services.orm.tables import label_result
 from services.orm.tables import model_info
 from services.orm.tables import project
@@ -59,6 +61,7 @@ config_mapping = {
 }
 
 splitter = SentenceSplitter(language='en')
+
 
 def text_to_sentence(text: Union[str, bytes], name: str = None):
     text = text.decode() if isinstance(text, bytes) else text
@@ -256,7 +259,7 @@ def get_single_project(project_id: int,
             merged_data = project_data.join(label_data.set_index('id'), on='id')
             project_data = merged_data.fillna(np.nan).replace([np.nan], [None])
         res['project_data'] = project_data.to_dict('records')
-        res['total_num'] = total_num
+        res['data_num'] = total_num
 
     return res
 
@@ -274,33 +277,27 @@ def trigger_project_train(project_id: int,
     if not project_res:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    label_res = get_label_by_id(label_id=label_id, project_id=project_id)
+    label_res = get_single_project_label(project_id=project_id, label_id=label_id)
     if not project_res:
       raise HTTPException(status_code=404, detail="Label not found")
 
     label_id = label_res['id']
     model_res = get_models_by_label_id(label_id=label_id)
-    if not model_res:
-        raise HTTPException(status_code=404, detail="Model not found")
 
     selected_model, model_num = select_model_for_train(model_res)
     model_id = uuid.uuid4().hex
-    model_flag = 0
+    new_model_flag = 0
     if not selected_model:
       if model_num >= max_model_num_for_one_label:
           raise HTTPException(status_code=400, detail="Can not create more models and all model is busy")
       else:
         with engine.begin() as conn:
-          model_flag = 1
-          selected_model = conn.execute(model_info
-                                        .insert()
-                                        .values({"label_id": label_id,
-                                                 "model_uuid": model_id,
-                                                 "extra": {'train_begin': True},
-                                                 "status": ModelStatus.free.value,
-                                                 "iteration": label_res['iteration']})
-                                        .returning(model_info.c.id.label('model_id'),
-                                                   model_info.c.model_uuid)).fetchone()._asdict()
+          new_model_flag = 1
+          selected_model = create_new_model(label_id=label_id,
+                                            model_id=model_id,
+                                            extra={'train_begin': True},
+                                            iteration=label_res['iteration'],
+                                            conn=conn)
     model_id = selected_model['model_uuid']
 
     project_data = mk.read(os.path.join(project_base_path,
@@ -308,7 +305,7 @@ def trigger_project_train(project_id: int,
     label_data = mk.read(os.path.join(label_base_path,
                                       f'{label_res["file_path"]}.mk')).to_pandas()
 
-    current_model = label_res['current_model']
+    # current_model = label_res['current_model']
 
     project_with_label = label_data.merge(project_data, how='left', on='id')
     # project_with_label = project_data.join(label_data.set_index('id'), on='id')
@@ -330,9 +327,9 @@ def trigger_project_train(project_id: int,
                               column_2=data_columns[1],
                               explanation_column=label_columns[-1],
                               model_id=model_id,
-                              old_model_id=model_id if model_flag else None)
+                              old_model_id=model_id if not new_model_flag else None)
 
-    return model_res
+    return selected_model
 
 
 @router.get("/{project_id}/labels")
