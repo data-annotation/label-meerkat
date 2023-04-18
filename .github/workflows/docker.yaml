@@ -41,5 +41,6 @@ jobs:
           context: .
           build-args: |
             PYPI=https://pypi.org/simple
+            DEBIAN=http://deb.debian.org
           tags: |
             ghcr.io/${{ env.user_lc }}/label-meerkat:latest
