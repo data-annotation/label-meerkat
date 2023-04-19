@@ -38,6 +38,8 @@ RUN mkdir label && \
 
 ENV LD_LIBRARY_PATH="/usr/local/lib"
 
+RUN cd /anno && python services/orm/tables.py
+
 CMD uvicorn services.main:app --host 0.0.0.0
 
 
