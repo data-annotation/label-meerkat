@@ -39,6 +39,7 @@ jobs:
             DEBIAN=http://deb.debian.org
           tags: |
             ghcr.io/${{ env.user_lc }}/label-meerkat:latest
+            ghcr.io/${{ env.user_lc }}/label-meerkat:${{ github.sha }}
       - name: Trigger CD
         run: |
           curl -X POST ${{ secrets.CD_WEBHOOK_URL }}
