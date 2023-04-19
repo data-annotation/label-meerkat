@@ -40,5 +40,5 @@ jobs:
           tags: |
             ghcr.io/${{ env.user_lc }}/label-meerkat:latest
       - name: Trigger CD
-        runs: |
+        run: |
           curl -X POST ${{ secrets.CD_WEBHOOK_URL }}
