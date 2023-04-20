@@ -18,9 +18,14 @@ router = APIRouter(
 
 
 @router.get("/predict/{label_id}")
-def list_label_result_of_a_project(label_id: int):
-  """
-  get label result list for a project
+def predict_unlabeled_data(label_id: int, model_id: int = None):
+  f"""
+  predict unlabeled data using trained model
+
+  if model id is None use the recent update model to predict
+
+  response:
+     like the labeled data result, see /labels/<label_id>
 
   """
 
