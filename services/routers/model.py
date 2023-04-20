@@ -17,6 +17,17 @@ def get_model_info(model_id: int):
     """
     get model info by model id
 
+    response:
+    status: 0 空闲状态，1 training
+    iteration:迭代训练次数，触发过多少次训练
+    extra:
+      train_begin, bool: True
+      train_end, bool: False
+      total_steps, int: 总训练步骤数
+      current_step, int: 当前为所处训练步骤数
+      progress, str: 1/10 所处步骤训练进度
+      begin_time, float: timestamp
+
     """
 
     conn = engine.connect()
@@ -25,7 +36,6 @@ def get_model_info(model_id: int):
                  model_info.c.label_id,
                  model_info.c.extra,
                  model_info.c.iteration,
-                 model_info.c.current_model,
                  model_info.c.create_time,
                  model_info.c.update_time).where(model_info.c.id == model_id)
 
@@ -46,7 +56,6 @@ def get_models_info_by_label_id(label_id: int):
                  model_info.c.label_id,
                  model_info.c.extra,
                  model_info.c.iteration,
-                 model_info.c.current_model,
                  model_info.c.create_time,
                  model_info.c.update_time).where(model_info.c.label_id == label_id)
 

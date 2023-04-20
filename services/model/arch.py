@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import sys
+import time
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from typing import Union
@@ -76,7 +77,7 @@ class MyCallback(TrainerCallback):
                                                            'total_steps': self.total_steps,
                                                            'current_step': self.current_step,
                                                            'train_end': False,
-                                                           'begin_time': datetime.datetime.utcnow().isoformat()})),
+                                                           'begin_time': time.time()})),
                       'status': 1}))
       with self.engine.begin() as conn:
         conn.execute(sql)
