@@ -203,7 +203,7 @@ def create_new_model(label_id: int,
                               "extra": extra or dict(),
                               "status": status,
                               "iteration": iteration})
-                     .returning(model_info.c.id.label('model_id'),
+                     .returning(model_info.c.id,
                                 model_info.c.model_uuid)).fetchone()._asdict()
 
   return res
