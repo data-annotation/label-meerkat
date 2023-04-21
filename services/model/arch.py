@@ -315,16 +315,18 @@ def predict(test_dataset, model_path):
     answers.extend(outs)
 
   predictions = []
-  references = []
-  for ref, pred in zip(test_dataset, answers):
+  for pred in answers:
     predictions.append(pred)
-    # references.append(ref['answer'])
+  # references = []
+  # for ref, pred in zip(test_dataset, answers):
+  #   predictions.append(pred)
+  #   # references.append(ref['answer'])
 
-    references.append(tokenizer.decode(ref['target_ids'], skip_special_tokens=True))
+  #   references.append(tokenizer.decode(ref['target_ids'], skip_special_tokens=True))
 
-  print("1st predicted:", predictions[0])
-  print("1st groundtruth:", references[0])
-  assert len(predictions) == len(references)
+  # print("1st predicted:", predictions[0])
+  # print("1st groundtruth:", references[0])
+  # assert len(predictions) == len(references)
 
   return predictions
 
