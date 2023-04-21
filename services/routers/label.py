@@ -182,7 +182,7 @@ def get_label_result(label_id: int,
     label_full = mk.read(os.path.join(label_base_path, f'{res["file_path"]}.mk')).to_pandas()
     if with_label_data:
         res['label_data_num'] = len(label_full)
-        res['label_data'] = label_full.to_dict()
+        res['label_data'] = label_full.to_dict('records')
 
     return res
 
@@ -211,88 +211,15 @@ def update_label_result(label_id: int,
     label_mk_df = mk.read(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
     label_data = pd.DataFrame(label_data)
 
-    label_full = pd.concat([label_mk_df.to_pandas(index=False), label_data])
+    label_full = pd.concat([label_mk_df.to_pandas(index=False),
+                            label_data]).drop_duplicates('id',
+                                                         keep='last')
 
     label_full_mk = mk.from_pandas(label_full, index=False)
     label_full_mk.write(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
 
     return {'label_id': label_id,
             'label_data_num': len(label_full)}
-
-
-# @router.get("/{label_result_id}/state")
-# def get_label_state(label_result_id: int):
-#   """
-#   get training or predict state after create or update a project label
-#
-#   """
-#   sql = select(label_result.c.id,
-#                label_result.c.extra).where(label_result.c.id == label_result_id)
-#
-#   res = engine.connect().execute(sql).fetchone()
-#   if not res:
-#     raise HTTPException(status_code=400, detail="Labels can not found!")
-#
-#   return {'state': res[1]}
-
-
-# @router.patch("/{label_id}")
-# def only_update_label(label_id: int,
-#                       label_data: dict = Body(embed=True)):
-#     """
-#     update a label result
-#
-#     "label_data": {
-#       "label": [1, 2, 0, 1, 0, 2, 2, 0, 1, 1],
-#       "id": [0,1,2,3,4,5,6,7,8,9],
-#       "explanation": ["the person is not necessarily training his horse",
-#       "One cannot be on a jumping horse cannot be a diner ordering food.",
-#       "a broken down airplane is outdoors",
-#       "Just because they are smiling and waving at a camera does not imply their parents or anyone is anyone behind it",
-#       "The children must be present to see them smiling and waving.",
-#       "One cannot be smiling and frowning at the same time.",
-#       "One cannot be in the middle of a bridge if they are on the sidewalk.",
-#       "jumping on skateboard is the same as doing trick on skateboard.",
-#       "Just because the boy is jumping on a skateboard does not imply he is wearing safety equipment",
-#       "it is not necessarily true the man drinks his juice"]
-#     }
-#     """
-#     coon = engine.connect()
-#     label_res = dict(coon.execute(select(label_result.c.id,
-#                                          label_result.c.name,
-#                                          label_result.c.user_id,
-#                                          label_result.c.project_id,
-#                                          label_result.c.config,
-#                                          label_result.c.extra,
-#                                          label_result.c.create_time,
-#                                          label_result.c.update_time,
-#                                          label_result.c.file_path)
-#                                   .where(label_result.c.id == label_id)
-#                                   .order_by(label_result.c.create_time)
-#                                   .limit(1))
-#                      .fetchone())
-#
-#     if not label_res:
-#         raise HTTPException(status_code=400,
-#                             detail="Labels can not found!")
-#
-#     new_model_id = uuid.uuid4().hex
-#     label_mk_df = mk.read(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
-#     label_data = pd.DataFrame(label_data)
-#
-#     label_full = pd.concat([label_mk_df.to_pandas(), label_data])
-#     label_full_mk = mk.from_pandas(label_full, index=False)
-#     label_full_mk.write(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
-#
-#     sql = (label_result
-#            .update()
-#            .where(label_result.c.id == label_res['id'])
-#            .values({'last_model': label_result.c.current_model,
-#                     'current_model': new_model_id}))
-#     coon.execute(sql)
-#
-#     return {'label_id': label_res['id'],
-#             'label_data_num': len(label_full)}
 
 
 @router.get("/{label_id}/models")
