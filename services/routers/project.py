@@ -278,7 +278,7 @@ def trigger_project_train(project_id: int,
         raise HTTPException(status_code=404, detail="Project not found")
 
     label_res = get_single_project_label(project_id=project_id, label_id=label_id)
-    if not project_res:
+    if not label_res:
       raise HTTPException(status_code=404, detail="Label not found")
 
     label_id = label_res['id']
