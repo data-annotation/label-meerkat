@@ -1,7 +1,5 @@
-import json
 import os.path
 import meerkat as mk
-import numpy as np
 
 from fastapi import APIRouter
 from fastapi import HTTPException
@@ -11,8 +9,7 @@ from services.config import project_base_path
 from services.config import label_base_path
 from services.orm.tables import engine
 from services.orm.tables import model_info
-
-from services.orm.tables import get_label_by_idgit 
+from services.orm.tables import get_label_by_id
 from services.orm.tables import get_models_by_label_id
 from services.orm.tables import get_project_by_id
 from services.routers import select_model_for_train
@@ -65,7 +62,8 @@ def predict_unlabeled_data(label_id: int, model_id: int = None):
     columns = set(data_columns + label_columns)
 
     unlabeled_data = merge_data[merge_data['label'].isnull()][columns]
-    predicted_rationale, predicted_label = predict_pipeline(unlabeled_data, model_id=model_id, label_id=label_id,                                                         column_1='sentence1', column_2='sentence2', explanation_column='sentence2')
+    predicted_rationale, predicted_label = predict_pipeline(unlabeled_data, model_id=model_id, label_id=label_id,
+                                                            column_1='sentence1', column_2='sentence2', explanation_column='sentence2')
     pre_dict = {}
     pre_dict['explanation'] = predicted_rationale
     pre_dict['label'] = predicted_label
