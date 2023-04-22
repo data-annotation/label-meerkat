@@ -23,13 +23,17 @@ def prediction_model_define_input_1(example,
                                     column_1: str,
                                     column_2: str,
                                     explanation_column: str = 'generated_rationale',
-                                    label_column: str = 'label'):
+                                    label_column: str = 'label',
+                                    is_train = True):
   label_content = ""
   for i in range(len(label)):
     label_content += 'choice' + str(i + 1) + ': ' + str(label[i]) + ' '
 
   example['input_text'] = ('question: what is the relationship between %s and %s ' % (example[column_1], example[column_2])) + label_content + (' <sep> because %s' % (example[explanation_column]))
-  example['target_text'] = '%s' % label[int(example[label_column])]
+  if is_train:
+    example['target_text'] = '%s' % label[int(example[label_column])]
+  else:
+    example['target_text'] = 'Null'
 
   return example
 
@@ -100,7 +104,8 @@ def prediction_model_preprocessing(input_dataset,
                                    label=labels,
                                    column_1=column_1,
                                    column_2=column_2,
-                                   explanation_column=explanation_column)
+                                   explanation_column=explanation_column,
+                                   is_train=False)
   input_dataset = input_dataset.map(prediction_model_input, load_from_cache_file=False)
   input_dataset = input_dataset.map(convert_to_features, batched=True, load_from_cache_file=False)
 
