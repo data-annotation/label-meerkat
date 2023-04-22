@@ -278,7 +278,7 @@ def trigger_project_train(project_id: int,
         raise HTTPException(status_code=404, detail="Project not found")
 
     label_res = get_single_project_label(project_id=project_id, label_id=label_id)
-    if not project_res:
+    if not label_res:
       raise HTTPException(status_code=404, detail="Label not found")
 
     label_id = label_res['id']
@@ -329,7 +329,8 @@ def trigger_project_train(project_id: int,
                               model_id=model_id,
                               old_model_id=model_id if not new_model_flag else None)
 
-    return selected_model
+    return {'model_id': selected_model['id'],
+            'model_uuid': selected_model['model_uuid']}
 
 
 @router.get("/{project_id}/labels")

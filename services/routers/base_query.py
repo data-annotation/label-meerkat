@@ -75,6 +75,17 @@ def get_model_status(model_id: int):
     """
     get model info by model id
 
+
+    response:
+    status, int: 0 空闲状态，1 training
+    iteration, int:迭代训练次数，触发过多少次训练
+    extra, object: 初始时为空{}
+      train_begin, bool: True
+      train_end, bool: False
+      total_steps, int: 总训练步骤数
+      current_step, int: 当前为所处训练步骤数
+      progress, str: 1/10 所处步骤训练进度
+      begin_time, float: timestamp
     """
 
     conn = engine.connect()

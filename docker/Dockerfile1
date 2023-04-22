@@ -6,7 +6,7 @@ ARG DEBIAN=https://mirrors.tuna.tsinghua.edu.cn
 
 COPY requirement-anno.txt requirement.txt
 
-RUN pip install -r requirement.txt -i ${PYPI}
+RUN pip install -r requirement.txt -i ${PYPI} && rm -r /root/.cache/pip
 
 # RUN --mount=type=cache,mode=0777,target=/Users/jin/Library/Caches/pip
 
@@ -16,9 +16,8 @@ RUN apt-get install -y vim
 
 RUN wget "https://www.sqlite.org/2023/sqlite-autoconf-3410200.tar.gz" && tar xzf sqlite-autoconf-3410200.tar.gz \
     && cd sqlite-autoconf-3410200 && ./configure --disable-static --enable-fts5 --enable-json1 CFLAGS="-g -O2 -DSQLITE_ENABLE_FTS3=1 -DSQLITE_ENABLE_FTS4=1 -DSQLITE_ENABLE_RTREE=1 -DSQLITE_ENABLE_JSON1" \
-    && make && make install
-
-RUN rm sqlite-autoconf-3410200.tar.gz && rm -rf sqlite-autoconf-3410200
+    && make && make install \
+    && cd / && rm sqlite-autoconf-3410200.tar.gz && rm -rf sqlite-autoconf-3410200
 
 WORKDIR /anno
 COPY services/ services
@@ -34,9 +33,7 @@ RUN mkdir label && \
 ENV LD_LIBRARY_PATH="/usr/local/lib"
 
 RUN cd /anno && python -m services.orm.tables
-RUN rm -r /root/.cache/pip
+
+ENV TZ=Asia/Shanghai
 
 CMD uvicorn services.main:app --host 0.0.0.0
-
-
-
