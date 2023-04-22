@@ -10,8 +10,8 @@ model_path = 'model_data'
 SentenceTransformer_PATH = "../all-MiniLM-L6-v2"
 
 sqlite_dsn = 'sqlite:///test.db'
-# base_model = 'google/t5-efficient-tiny'
-base_model = 't5-base'
+base_model = 'google/t5-efficient-tiny'
+# base_model = 't5-base'
 # base_model = 't5-small'
 # base_model = 'google/t5-efficient-mini'
 # base_model = 'valhalla/t5-small-qa-qg-hl'

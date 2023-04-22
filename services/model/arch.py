@@ -314,9 +314,6 @@ def predict(test_dataset, model_path):
     outs = [tokenizer.decode(ids, skip_special_tokens=True).encode('utf-8').decode('utf-8') for ids in outs]
     answers.extend(outs)
 
-  predictions = []
-  for pred in answers:
-    predictions.append(pred)
   # references = []
   # for ref, pred in zip(test_dataset, answers):
   #   predictions.append(pred)
@@ -328,7 +325,7 @@ def predict(test_dataset, model_path):
   # print("1st groundtruth:", references[0])
   # assert len(predictions) == len(references)
 
-  return predictions
+  return answers
 
 
 def predict_pipeline(data_predict: Union[list, dict, pd.DataFrame],

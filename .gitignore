@@ -1,3 +1,17 @@
+.idea/
+
+model_data/
+
+project/
+
+all-MiniLM-L6-v2/
+
+label/
+
+test.db
+
+predict_result/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

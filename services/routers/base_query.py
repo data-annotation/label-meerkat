@@ -4,7 +4,7 @@ import meerkat as mk
 import numpy as np
 
 from fastapi import APIRouter
-from fastapi import BackgroundTasks
+from fastapi import HTTPException
 from sqlalchemy import select
 
 from services.config import predict_result_path
@@ -51,8 +51,10 @@ def predict_unlabeled_data(label_id: int, model_id: int = None):
 
     label_res = get_label_by_id(label_id)
     project_res = get_project_by_id(label_res["project_id"])
-
     model_res = get_models_by_label_id(label_id=label_id)
+    if not label_res:
+        raise HTTPException(status_code=400, detail="Model not found!")
+
     selected_model, model_num = select_model_for_train(model_res)
     model_id = selected_model['model_uuid']
     project_data = mk.read(os.path.join(project_base_path,
@@ -67,15 +69,11 @@ def predict_unlabeled_data(label_id: int, model_id: int = None):
     columns = set(data_columns + label_columns)
 
     unlabeled_data = merge_data[merge_data['label'].isnull()][columns]
-    unlabeled_data['explanation'] = np.where(
-        unlabeled_data['explanation'].notnull(), unlabeled_data['explanation'], " ")
-    print(unlabeled_data)
-    predict_pipeline(unlabeled_data, model_id=model_id, label_id=label_id,
-                                                            column_1='sentence1', column_2='sentence2', explanation_column='sentence2')
-    result_path = os.path.join(predict_result_path, str(label_id))
-    with open(result_path+f"/{label_res['current_model']}.json", 'r') as f:
-        res = json.load(f)
-    return res
+    predicted_rationale, predicted_label = predict_pipeline(unlabeled_data, model_id=model_id, label_id=label_id,                                                         column_1='sentence1', column_2='sentence2', explanation_column='sentence2')
+    pre_dict = {}
+    pre_dict['explanation'] = predicted_rationale
+    pre_dict['label'] = predicted_label
+    return pre_dict
 
 
 @router.get("/models/{model_id}/status")
