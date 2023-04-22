@@ -7,18 +7,14 @@ from fastapi import APIRouter
 from fastapi import HTTPException
 from sqlalchemy import select
 
-from services.config import predict_result_path
 from services.config import project_base_path
 from services.config import label_base_path
 from services.orm.tables import engine
-from services.orm.tables import label_result
 from services.orm.tables import model_info
 
-from services.orm.tables import get_label_by_id
-from services.orm.tables import get_labels_by_project_id
+from services.orm.tables import get_label_by_idgit 
 from services.orm.tables import get_models_by_label_id
 from services.orm.tables import get_project_by_id
-from services.orm.tables import get_single_project_label
 from services.routers import select_model_for_train
 from services.model.arch import predict_pipeline
 
