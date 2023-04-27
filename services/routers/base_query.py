@@ -34,14 +34,6 @@ def predict_unlabeled_data(label_id: int, model_id: int = None):
 
     """
 
-    # conn = engine.connect()
-    # sql = select(label_result.c.id,
-    #              label_result.c.current_model,
-    #              label_result.c.project_id,
-    #              label_result.c.file_path).where(label_result.c.id == label_id)
-
-    # label_record = conn.execute(sql).fetchone()
-
     label_res = get_label_by_id(label_id)
     project_res = get_project_by_id(label_res["project_id"])
     model_res = get_models_by_label_id(label_id=label_id)
@@ -65,6 +57,9 @@ def predict_unlabeled_data(label_id: int, model_id: int = None):
     predicted_rationale, predicted_label = predict_pipeline(unlabeled_data, model_id=model_id, label_id=label_id,
                                                             column_1='sentence1', column_2='sentence2', explanation_column='sentence2')
     pre_dict = {}
+    pre_dict['unlabeled_data'] = []
+    for s1, s2 in zip(unlabeled_data['sentence1'].to_numpy(), unlabeled_data['sentence2'].to_numpy()):
+        pre_dict['unlabeled_data'].append([s1, s2])
     pre_dict['explanation'] = predicted_rationale
     pre_dict['label'] = predicted_label
     return pre_dict
