@@ -225,13 +225,13 @@ def new_project(files: List[UploadFile],
 
 
 @router.get("/{project_id}")
-def get_single_project(project_id: int,
-                       response: Response,
-                       label_id: int = None,
-                       size: int = 1000,
-                       num: int = 0):
+def get_single_project_meta_info(project_id: int,
+                                 response: Response,
+                                 label_id: int = None,
+                                 size: int = 1000,
+                                 num: int = 0):
     """
-    get a project data
+    get a project meta info
 
     """
     project_res = get_project_by_id(project_id)
@@ -241,8 +241,34 @@ def get_single_project(project_id: int,
         return 'Project Not Found'
 
     res = {'project_meta': project_res,
-           'data_num': 0,
-           'label_num': 0}
+           'data_num': 0}
+
+    project_data_path = os.path.join(project_base_path, f"{project_res['file_path']}.mk")
+    if os.path.exists(project_data_path):
+        project_data = mk.read(project_data_path).to_pandas()
+        total_num = len(project_data)
+        res['data_num'] = total_num
+
+    return res
+
+
+@router.get("/{project_id}/data")
+def get_single_project_data(project_id: int,
+                            response: Response,
+                            label_id: int = None,
+                            size: int = 1000,
+                            num: int = 0):
+    """
+    get a project data and label data
+
+    """
+    project_res = get_project_by_id(project_id)
+
+    if not project_res:
+        response.status_code = 400
+        return 'Project Not Found'
+
+    res = {'data_num': 0}
 
     project_data_path = os.path.join(project_base_path, f"{project_res['file_path']}.mk")
     if os.path.exists(project_data_path):
@@ -250,7 +276,7 @@ def get_single_project(project_id: int,
         total_num = len(project_data)
         project_data = project_data.iloc[size * num:size * (num + 1)]
         if label_id:
-            label_res = get_label_by_id(label_id, project_id=project_id)
+            label_res = get_label_by_id(label_id=label_id)
             label_data_path = os.path.join(label_base_path, f"{label_res['file_path']}.mk")
             label_data = mk.read(label_data_path).to_pandas()
             label_column = label_res['config']['label_column']

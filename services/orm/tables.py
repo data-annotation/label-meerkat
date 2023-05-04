@@ -103,6 +103,18 @@ model_info = Table(
 
 Index("ux_label_result_name_user_id", label_result.c.name, label_result.c.user_id, unique=True)
 
+basic_label_cols = [label_result.c.id,
+                    label_result.c.name,
+                    label_result.c.user_id,
+                    label_result.c.project_id,
+                    label_result.c.config,
+                    label_result.c.extra,
+                    label_result.c.last_model,
+                    label_result.c.current_model,
+                    label_result.c.create_time,
+                    label_result.c.update_time,
+                    label_result.c.iteration,
+                    label_result.c.file_path]
 
 def get_project_by_id(project_id: int, conn=None):
     conn = conn or engine.connect()
@@ -122,18 +134,7 @@ def get_label_by_id(label_id: int, project_id: int = None, conn=None):
     cond = [label_result.c.id == label_id]
     if project_id:
         cond.append(label_result.c.project_id == project_id)
-    label_res = (conn.execute(select(label_result.c.id,
-                                     label_result.c.name,
-                                     label_result.c.user_id,
-                                     label_result.c.project_id,
-                                     label_result.c.config,
-                                     label_result.c.extra,
-                                     label_result.c.last_model,
-                                     label_result.c.current_model,
-                                     label_result.c.create_time,
-                                     label_result.c.update_time,
-                                     label_result.c.iteration,
-                                     label_result.c.file_path)
+    label_res = (conn.execute(select(*basic_label_cols)
                               .where(and_(*cond)))
                  .fetchone()._asdict())
     return label_res if label_res else None
@@ -144,18 +145,7 @@ def get_single_project_label(project_id: int, label_id: int = None, conn = None)
     if label_id:
       return get_label_by_id(label_id=label_id, conn=conn)
     else:
-      return (conn.execute(select(label_result.c.id,
-                                  label_result.c.name,
-                                  label_result.c.user_id,
-                                  label_result.c.project_id,
-                                  label_result.c.config,
-                                  label_result.c.extra,
-                                  label_result.c.last_model,
-                                  label_result.c.current_model,
-                                  label_result.c.create_time,
-                                  label_result.c.update_time,
-                                  label_result.c.iteration,
-                                  label_result.c.file_path)
+      return (conn.execute(select(*basic_label_cols)
                            .where(and_(label_result.c.project_id == project_id))
                            .order_by(label_result.c.update_time.desc()))
               .fetchone()._asdict()) or None

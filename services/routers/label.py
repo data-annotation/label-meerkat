@@ -162,51 +162,51 @@ def create_label_with_train(project_id: int,
 
 
 @router.get("/{label_id}")
-def get_label_result(label_id: int,
-                     with_label_data: bool = False):
+def get_label_result_meta_info(label_id: int):
+    """
+    get label result meta info
+
+    """
+    label_res = get_label_by_id(label_id=label_id)
+    if not label_res:
+      raise HTTPException(status_code=404, detail="Label not found")
+
+    res = {'label_data_num': 0,
+           'label_meta': label_res}
+    label_full = mk.read(os.path.join(label_base_path, f'{label_res["file_path"]}.mk')).to_pandas()
+    res['label_data_num'] = len(label_full)
+
+    return res
+
+@router.get("/{label_id}/data")
+def get_label_result(label_id: int):
     """
     get label result
 
     """
-    conn = engine.connect()
-    sql = select(label_result.c.id,
-                 label_result.c.name,
-                 label_result.c.user_id,
-                 label_result.c.project_id,
-                 label_result.c.config,
-                 label_result.c.create_time,
-                 label_result.c.update_time,
-                 label_result.c.file_path).where(label_result.c.id == label_id)
+    label_res = get_label_by_id(label_id=label_id)
+    if not label_res:
+      raise HTTPException(status_code=404, detail="Label not found")
 
-    res = conn.execute(sql).fetchone()._asdict()
-    label_full = mk.read(os.path.join(label_base_path, f'{res["file_path"]}.mk')).to_pandas()
-    if with_label_data:
-        res['label_data_num'] = len(label_full)
-        res['label_data'] = label_full.to_dict('records')
+    res = {'label_data_num': 0}
+
+    label_full = mk.read(os.path.join(label_base_path, f'{label_res["file_path"]}.mk')).to_pandas()
+    res['data_num'] = len(label_full)
+    res['label_data'] = label_full.replace([np.nan], [None]).to_dict('records')
 
     return res
 
 
-@router.patch("/{label_id}")
+@router.patch("/{label_id}/data")
 def update_label_result(label_id: int,
                         label_data: dict = Body(embed=True)):
     """
     update a label result
 
     """
-    conn = engine.connect()
-    sql = select(label_result.c.id,
-                 label_result.c.user_id,
-                 label_result.c.project_id,
-                 label_result.c.file_path,
-                 label_result.c.last_model,
-                 label_result.c.current_model,
-                 label_result.c.iteration,
-                 label_result.c.config).where(label_result.c.id == label_id)
-
-    label_res: dict = conn.execute(sql).fetchone()._asdict()
+    label_res = get_label_by_id(label_id=label_id)
     if not label_res:
-        raise HTTPException(status_code=400, detail="Labels can not found!")
+      raise HTTPException(status_code=404, detail="Label not found")
 
     label_mk_df = mk.read(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
     label_data = pd.DataFrame(label_data)
@@ -218,8 +218,7 @@ def update_label_result(label_id: int,
     label_full_mk = mk.from_pandas(label_full, index=False)
     label_full_mk.write(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
 
-    return {'label_id': label_id,
-            'label_data_num': len(label_full)}
+    return {'label_data_num': len(label_full)}
 
 
 @router.get("/{label_id}/models")
@@ -275,6 +274,6 @@ def get_unlabeled_data(label_id: int,
       raise HTTPException(status_code=400, detail="not implemented")
     unlabeled_project_data = unlabeled_project_data.fillna(np.nan).replace([np.nan], [None])
     return {'label_id': label_id,
-            'unlabeled_data': unlabeled_project_data.to_dict('records'),
-            'total_num': len(project_with_label),
-            'selected_num': len(unlabeled_project_data)}
+            'project_data': unlabeled_project_data.to_dict('records'),
+            'data_num': len(unlabeled_project_data)}
+
