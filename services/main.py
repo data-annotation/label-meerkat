@@ -8,6 +8,7 @@ from services.routers import data_process
 from services.routers import label
 from services.routers import project
 from services.routers import user
+from services.routers import model
 
 app = FastAPI(debug=True)
 app.add_middleware(
@@ -23,6 +24,7 @@ app.include_router(project.router)
 app.include_router(user.router)
 app.include_router(label.router)
 app.include_router(base_query.router)
+app.include_router(model.router)
 
 # projects.init(app)
 

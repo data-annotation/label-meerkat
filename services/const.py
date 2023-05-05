@@ -6,6 +6,12 @@ class ModelStatus(Enum):
   free = 0
 
 
+class TrainingWay(str, Enum):
+  new = 'new'
+  continued = 'continued'
+
+
+
 class GetUnlabeledWay(Enum):
   random = 'random'
   similarity = 'similarity'

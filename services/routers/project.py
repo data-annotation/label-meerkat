@@ -1,6 +1,7 @@
 import io
 import json
 import os
+import shutil
 import uuid
 import zipfile
 from enum import Enum
@@ -22,8 +23,9 @@ from sqlalchemy import select
 
 from services.config import label_base_path
 from services.config import max_model_num_for_one_label
+from services.config import model_path
 from services.config import project_base_path
-from services.const import ModelStatus
+from services.const import TrainingWay
 from services.model.AL import one_training_iteration
 from services.orm.tables import create_new_model
 from services.orm.tables import engine
@@ -36,7 +38,7 @@ from services.orm.tables import label_result
 from services.orm.tables import model_info
 from services.orm.tables import project
 from services.orm.tables import user
-from services.routers import select_model_for_train
+
 
 router = APIRouter(
     prefix="/projects",
@@ -294,6 +296,7 @@ def get_single_project_data(project_id: int,
 def trigger_project_train(project_id: int,
                           background_tasks: BackgroundTasks,
                           response: Response,
+                          training_way: TrainingWay = TrainingWay.new,
                           label_id: int = None):
     """
     get a project data
@@ -308,30 +311,27 @@ def trigger_project_train(project_id: int,
       raise HTTPException(status_code=404, detail="Label not found")
 
     label_id = label_res['id']
-    model_res = get_models_by_label_id(label_id=label_id)
+    model_res = get_models_by_label_id(label_id=label_id, deleted=False)
 
-    selected_model, model_num = select_model_for_train(model_res)
-    model_id = uuid.uuid4().hex
     new_model_flag = 0
-    if not selected_model:
-      if model_num >= max_model_num_for_one_label:
-          raise HTTPException(status_code=400, detail="Can not create more models and all model is busy")
-      else:
-        with engine.begin() as conn:
-          new_model_flag = 1
-          selected_model = create_new_model(label_id=label_id,
-                                            model_id=model_id,
-                                            extra={'train_begin': True},
-                                            iteration=label_res['iteration'],
-                                            conn=conn)
-    model_id = selected_model['model_uuid']
+    # if not selected_model:
+    #   if model_num >= max_model_num_for_one_label:
+    #       raise HTTPException(status_code=400, detail="Can not create more models and all model is busy")
+    #   else:
+    #     with engine.begin() as conn:
+    #       new_model_flag = 1
+    #       selected_model = create_new_model(label_id=label_id,
+    #                                         model_id=model_id,
+    #                                         extra={'train_begin': True},
+    #                                         iteration=label_res['iteration'],
+    #                                         conn=conn)
+    # model_id = selected_model['model_uuid']
+
 
     project_data = mk.read(os.path.join(project_base_path,
                                         f'{project_res["file_path"]}.mk')).to_pandas()
     label_data = mk.read(os.path.join(label_base_path,
                                       f'{label_res["file_path"]}.mk')).to_pandas()
-
-    # current_model = label_res['current_model']
 
     project_with_label = label_data.merge(project_data, how='left', on='id')
     # project_with_label = project_data.join(label_data.set_index('id'), on='id')
@@ -340,13 +340,42 @@ def trigger_project_train(project_id: int,
     columns = set(data_columns + label_columns)
     all_labeled_project_data = project_with_label[project_with_label['label'].notnull()][columns]
 
+    if all_labeled_project_data.empty:
+      raise HTTPException(status_code=400, detail="no label data for training")
+
+    if not model_res or training_way == TrainingWay.new:
+      model_id = uuid.uuid4().hex
+      new_model_flag = 1
+    else:
+      model_id = model_res[0]['model_uuid']
+
     with engine.begin() as conn:
-        conn.execute(label_result
+      selected_model = create_new_model(label_id=label_id,
+                                        model_id=model_id,
+                                        extra={'train_begin': True},
+                                        iteration=label_res['iteration'],
+                                        conn=conn)
+      # 更新label 和 model 信息
+      conn.execute(label_result
+                   .update()
+                   .where(label_result.c.id == label_id)
+                   .values({"last_model": label_result.c.current_model,
+                            "current_model": model_id,
+                            "iteration": label_result.c.iteration+1}))
+      conn.execute(model_info
+                   .update()
+                   .where(model_info.c.id == selected_model['id'])
+                   .values({"data_num": len(all_labeled_project_data)}))
+
+      if len(model_res) >= max_model_num_for_one_label and new_model_flag:
+        shutil.rmtree(os.path.join(model_path, model_res[-1]['model_uuid']),
+                      ignore_errors=True)
+        conn.execute(model_info
                      .update()
-                     .where(label_result.c.id == label_id)
-                     .values({"last_model": label_result.c.current_model,
-                              "current_model": model_id,
-                              "iteration": label_result.c.iteration+1}))
+                     .where(model_info.c.id == model_res[-1]['id'])
+                     .values({"deleted": True}))
+
+    model_id = selected_model['model_uuid']
     background_tasks.add_task(one_training_iteration,
                               labeled_data=all_labeled_project_data,
                               column_1=data_columns[0],

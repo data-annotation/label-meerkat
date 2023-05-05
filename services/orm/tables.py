@@ -3,6 +3,7 @@ import json
 from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
+from sqlalchemy import Boolean
 from sqlalchemy import Table
 from sqlalchemy import JSON
 from sqlalchemy import DateTime
@@ -82,10 +83,12 @@ model_info = Table(
     Column("create_time", DateTime(timezone=True), server_default=func.now()),
     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
     Column("label_id", Integer, ForeignKey("label_result.id"), nullable=False),
+    Column("deleted", Boolean, default=False),
     Column("extra", JSON, default=dict(), nullable=False,
            server_default=text("'{}'")),
     Column("status", Integer, default=1, comment="0表示未在训练，1表示正在训练"),
     Column("iteration", Integer, default=1, comment="模型的迭代次数"),
+    Column("data_num", Integer, default=0, comment="模型训练使用的数据量"),
 )
 
 # label_config = Table(
@@ -99,7 +102,6 @@ model_info = Table(
 #     Column("create_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
 #     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 # )
-
 
 Index("ux_label_result_name_user_id", label_result.c.name, label_result.c.user_id, unique=True)
 
@@ -115,6 +117,16 @@ basic_label_cols = [label_result.c.id,
                     label_result.c.update_time,
                     label_result.c.iteration,
                     label_result.c.file_path]
+
+basic_model_cols = [model_info.c.id,
+                    model_info.c.model_uuid,
+                    model_info.c.status,
+                    model_info.c.label_id,
+                    model_info.c.extra,
+                    model_info.c.deleted,
+                    model_info.c.data_num,
+                    model_info.c.create_time,
+                    model_info.c.update_time]
 
 def get_project_by_id(project_id: int, conn=None):
     conn = conn or engine.connect()
@@ -153,28 +165,22 @@ def get_single_project_label(project_id: int, label_id: int = None, conn = None)
 
 def get_labels_by_project_id(project_id: int, conn=None):
     conn = conn or engine.connect()
-    sql = select(label_result.c.id,
-                 label_result.c.name,
-                 label_result.c.user_id,
-                 label_result.c.project_id,
-                 label_result.c.config,
-                 label_result.c.create_time,
-                 label_result.c.update_time).where(label_result.c.project_id == project_id)
+    sql = select(*basic_label_cols).where(label_result.c.project_id == project_id)
 
     return conn.execute(sql).mappings().all()
 
 
-def get_models_by_label_id(label_id: int, conn=None):
+def get_models_by_label_id(label_id: int,
+                           deleted: bool = None,
+                           conn=None):
   conn = conn or engine.connect()
-  sql = (select(model_info.c.id,
-                model_info.c.model_uuid,
-                model_info.c.status,
-                model_info.c.label_id,
-                model_info.c.extra,
-                model_info.c.create_time,
-                model_info.c.update_time)
-         .where(model_info.c.label_id == label_id)
-         .order_by(model_info.c.update_time.desc()))
+  cond = [model_info.c.label_id == label_id]
+  if deleted is not None:
+    cond.append(model_info.c.deleted == deleted)
+  sql = (select(*basic_model_cols)
+         .where(and_(*cond))
+         .order_by(model_info.c.data_num.desc(),
+                   model_info.c.update_time.desc()))
 
   return conn.execute(sql).mappings().all()
 

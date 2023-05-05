@@ -17,6 +17,7 @@ from services.config import project_base_path
 from services.const import GetUnlabeledWay
 from services.model.AL import one_training_iteration
 from services.model.arch import predict_pipeline
+from services.orm.tables import basic_model_cols
 from services.orm.tables import engine
 from services.orm.tables import get_label_by_id
 from services.orm.tables import get_project_by_id
@@ -178,6 +179,7 @@ def get_label_result_meta_info(label_id: int):
 
     return res
 
+
 @router.get("/{label_id}/data")
 def get_label_result(label_id: int):
     """
@@ -228,13 +230,7 @@ def get_project_models(label_id: int):
 
     """
     coon = engine.connect()
-    models = coon.execute(select(model_info.c.id,
-                                 model_info.c.extra,
-                                 model_info.c.label_id,
-                                 model_info.c.model_uuid,
-                                 model_info.c.iteration,
-                                 model_info.c.create_time,
-                                 model_info.c.update_time)
+    models = coon.execute(select(*basic_model_cols)
                           .where(model_info.c.label_id == label_id)
                           .order_by(model_info.c.update_time.desc())).mappings().all()
 
