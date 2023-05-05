@@ -12,7 +12,7 @@ class TrainingWay(str, Enum):
 
 
 
-class GetUnlabeledWay(Enum):
+class GetUnlabeledWay(str, Enum):
   random = 'random'
   similarity = 'similarity'
 

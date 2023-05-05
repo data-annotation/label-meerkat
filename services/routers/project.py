@@ -38,7 +38,8 @@ from services.orm.tables import label_result
 from services.orm.tables import model_info
 from services.orm.tables import project
 from services.orm.tables import user
-
+from services.routers import select_model_for_train
+from services.routers import encode_model
 
 router = APIRouter(
     prefix="/projects",
@@ -257,6 +258,8 @@ def get_single_project_meta_info(project_id: int,
 @router.get("/{project_id}/data")
 def get_single_project_data(project_id: int,
                             response: Response,
+                            key_word: str = None,
+                            column:str = None,
                             label_id: int = None,
                             size: int = 1000,
                             num: int = 0):
@@ -275,8 +278,20 @@ def get_single_project_data(project_id: int,
     project_data_path = os.path.join(project_base_path, f"{project_res['file_path']}.mk")
     if os.path.exists(project_data_path):
         project_data = mk.read(project_data_path).to_pandas()
-        total_num = len(project_data)
         project_data = project_data.iloc[size * num:size * (num + 1)]
+
+        if key_word:
+            kw_embed = encode_model.model.encode(key_word)
+            project_data['embed'] = project_data[column].map(lambda x: encode_model.model.encode(x))
+            project_data['scores'] = project_data['embed'].map(
+                lambda x: np.dot(x, kw_embed) / (np.linalg.norm(x) * np.linalg.norm(kw_embed))).squeeze()
+            sort_by_keyword_list = project_data.sort_values(by='scores', ascending=False).drop('embed', axis=1).drop('scores', axis=1).to_dict('records')
+            res['data_num'] = len(sort_by_keyword_list) if len(sort_by_keyword_list) < size else size
+            res['project_data'] = sort_by_keyword_list = sort_by_keyword_list if len(sort_by_keyword_list) < size else sort_by_keyword_list[:size]
+            return res
+        
+        total_num = len(project_data)
+        
         if label_id:
             label_res = get_label_by_id(label_id=label_id)
             label_data_path = os.path.join(label_base_path, f"{label_res['file_path']}.mk")

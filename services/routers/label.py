@@ -25,6 +25,7 @@ from services.orm.tables import label_result
 from services.orm.tables import model_info
 from services.orm.tables import project
 from services.orm.tables import user
+from services.model.selector import similarity_batch_selection
 
 router = APIRouter(
     prefix="/labels",
@@ -239,8 +240,8 @@ def get_project_models(label_id: int):
 
 @router.get("/{label_id}/unlabeled")
 def get_unlabeled_data(label_id: int,
-                       num: int = 30,
-                       way: str = GetUnlabeledWay.random.value):
+                       way: GetUnlabeledWay = GetUnlabeledWay.random,
+                       num: int = 30):
     """
     get unlabeled data
 
@@ -251,7 +252,7 @@ def get_unlabeled_data(label_id: int,
 
     project_res = get_project_by_id(label_info['project_id'])
     if not project_res:
-        raise HTTPException(status_code=404, detail="Project not found")
+      raise HTTPException(status_code=404, detail="Project not found")
 
     project_data = mk.read(os.path.join(project_base_path,
                                         f'{project_res["file_path"]}.mk')).to_pandas()
@@ -264,12 +265,25 @@ def get_unlabeled_data(label_id: int,
     data_columns = project_res['config'].get('columns', [])
     label_columns = label_info['config'].get('columns', [])
     columns = set(data_columns + label_columns)
-    if way == GetUnlabeledWay.random.value:
-      unlabeled_project_data = project_with_label[project_with_label['label'].isnull()][columns].sample(n=num, random_state=42)
+    if way == GetUnlabeledWay.random:
+      unlabeled_project_data = project_with_label[project_with_label['label'].isnull(
+      )][columns].sample(n=num, random_state=42)
+      unlabeled_project_data = unlabeled_project_data.fillna(
+      np.nan).replace([np.nan], [None]).to_dict('records')
     else:
-      raise HTTPException(status_code=400, detail="not implemented")
-    unlabeled_project_data = unlabeled_project_data.fillna(np.nan).replace([np.nan], [None])
+      # raise HTTPException(status_code=400, detail="not implemented")
+      unlabeled_project_data = project_with_label[project_with_label['label'].isnull()][columns]
+      if len(unlabeled_project_data) == 0:
+        raise HTTPException(status_code=400, detail="No data has been labeled")
+      if len(unlabeled_project_data) < num:
+        raise HTTPException(status_code=400, detail="Please label more data or decrease the num of selected data")
+      selected_data, remain = similarity_batch_selection(train_data=project_with_label[project_with_label['label'].isnull()][columns],
+                                                                  previous_batch_train_data=project_with_label[project_with_label['label'].notnull()][columns],
+                                                                  criteria='combined',
+                                                                  current_iter=1, num_batch=num, column_1='sentence1', column_2='sentence2')
+      unlabeled_project_data = selected_data.remove_columns('__index_level_0__').to_pandas().fillna('null').to_dict('records')
+
     return {'label_id': label_id,
-            'project_data': unlabeled_project_data.to_dict('records'),
+            'project_data': unlabeled_project_data,
             'data_num': len(unlabeled_project_data)}
 
