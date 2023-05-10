@@ -279,18 +279,7 @@ def get_single_project_data(project_id: int,
     if os.path.exists(project_data_path):
         project_data = mk.read(project_data_path).to_pandas()
         project_data = project_data.iloc[size * num:size * (num + 1)]
-
-        if key_word:
-            kw_embed = encode_model.model.encode(key_word)
-            project_data['embed'] = project_data[column].map(lambda x: encode_model.model.encode(x))
-            project_data['scores'] = project_data['embed'].map(
-                lambda x: np.dot(x, kw_embed) / (np.linalg.norm(x) * np.linalg.norm(kw_embed))).squeeze()
-            sort_by_keyword_list = project_data.sort_values(by='scores', ascending=False).drop('embed', axis=1).drop('scores', axis=1).to_dict('records')
-            res['data_num'] = len(sort_by_keyword_list) if len(sort_by_keyword_list) < size else size
-            res['project_data'] = sort_by_keyword_list = sort_by_keyword_list if len(sort_by_keyword_list) < size else sort_by_keyword_list[:size]
-            return res
-        
-        total_num = len(project_data)
+        total_num = len(project_data)   
         
         if label_id:
             label_res = get_label_by_id(label_id=label_id)
@@ -303,6 +292,14 @@ def get_single_project_data(project_id: int,
             project_data = merged_data.fillna(np.nan).replace([np.nan], [None])
         res['project_data'] = project_data.to_dict('records')
         res['data_num'] = total_num
+        
+        if key_word:
+            kw_embed = encode_model.model.encode(key_word)
+            project_data['embed'] = project_data[column].map(lambda x: encode_model.model.encode(x))
+            project_data['scores'] = project_data['embed'].map(
+                lambda x: np.dot(x, kw_embed) / (np.linalg.norm(x) * np.linalg.norm(kw_embed))).squeeze()
+            sort_by_keyword_list = project_data.sort_values(by='scores', ascending=False).drop('embed', axis=1).drop('scores', axis=1).to_dict('records')
+            res['project_data'] = sort_by_keyword_list
 
     return res
 
