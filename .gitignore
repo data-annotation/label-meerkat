@@ -121,4 +121,9 @@ venv.bak/
 .idea/
 
 # model
-all-MiniLM-L6-v2
+all-MiniLM-L6-v2/
+sentence-transformers/
+
+# test
+story_sentence_processed_df_embed_trans.mk
+test.py
