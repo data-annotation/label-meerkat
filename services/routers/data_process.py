@@ -185,11 +185,11 @@ def upload_file_and_process(project_id: int, search_words, response: Response):
     """search the best match sentence in processed data by search_words
 
     """
-    conn = engine.connect()
-    project_res = conn.execute(select(project.c.id,
-                                      project.c.name,
-                                      project.c.file_path,
-                                      project.c.config).where(project.c.id == project_id)).fetchone()
+    with engine.connect() as conn:
+        project_res = conn.execute(select(project.c.id,
+                                          project.c.name,
+                                          project.c.file_path,
+                                          project.c.config).where(project.c.id == project_id)).fetchone()
 
     df = mk.read(os.path.join(project_base_path, f'{project_res[2]}.mk'))
     kw_embed = encode_model.model.encode(search_words)

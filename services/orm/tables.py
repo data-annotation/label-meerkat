@@ -129,51 +129,51 @@ basic_model_cols = [model_info.c.id,
                     model_info.c.update_time]
 
 def get_project_by_id(project_id: int, conn=None):
-    conn = conn or engine.connect()
-    project_res = (conn.execute(select(project.c.id,
-                                       project.c.name,
-                                       project.c.file_path,
-                                       project.c.config,
-                                       project.c.create_time,
-                                       project.c.update_time)
-                                .where(project.c.id == project_id))
-                   .fetchone()._asdict())
+    with engine.connect() as conn:
+      project_res = (conn.execute(select(project.c.id,
+                                         project.c.name,
+                                         project.c.file_path,
+                                         project.c.config,
+                                         project.c.create_time,
+                                         project.c.update_time)
+                                  .where(project.c.id == project_id))
+                     .fetchone()._asdict())
     return project_res if project_res else None
 
 
-def get_label_by_id(label_id: int, project_id: int = None, conn=None):
-    conn = conn or engine.connect()
-    cond = [label_result.c.id == label_id]
-    if project_id:
-        cond.append(label_result.c.project_id == project_id)
+def get_label_by_id(label_id: int, project_id: int = None):
+  cond = [label_result.c.id == label_id]
+  if project_id:
+      cond.append(label_result.c.project_id == project_id)
+  with engine.connect() as conn:
     label_res = (conn.execute(select(*basic_label_cols)
                               .where(and_(*cond)))
                  .fetchone()._asdict())
-    return label_res if label_res else None
+  return label_res if label_res else None
 
 
-def get_single_project_label(project_id: int, label_id: int = None, conn = None):
-    conn = conn or engine.connect()
-    if label_id:
-      return get_label_by_id(label_id=label_id, conn=conn)
-    else:
-      return (conn.execute(select(*basic_label_cols)
+def get_single_project_label(project_id: int, label_id: int = None):
+  if label_id:
+    res = get_label_by_id(label_id=label_id)
+  else:
+    with engine.connect() as conn:
+      res = (conn.execute(select(*basic_label_cols)
                            .where(and_(label_result.c.project_id == project_id))
                            .order_by(label_result.c.update_time.desc()))
               .fetchone()._asdict()) or None
+  return res
 
 
 def get_labels_by_project_id(project_id: int, conn=None):
-    conn = conn or engine.connect()
-    sql = select(*basic_label_cols).where(label_result.c.project_id == project_id)
-
-    return conn.execute(sql).mappings().all()
+  sql = select(*basic_label_cols).where(label_result.c.project_id == project_id)
+  with engine.connect() as conn:
+    res = conn.execute(sql).mappings().all()
+  return res
 
 
 def get_models_by_label_id(label_id: int,
                            deleted: bool = None,
                            conn=None):
-  conn = conn or engine.connect()
   cond = [model_info.c.label_id == label_id]
   if deleted is not None:
     cond.append(model_info.c.deleted == deleted)
@@ -181,8 +181,9 @@ def get_models_by_label_id(label_id: int,
          .where(and_(*cond))
          .order_by(model_info.c.data_num.desc(),
                    model_info.c.update_time.desc()))
-
-  return conn.execute(sql).mappings().all()
+  with engine.connect() as conn:
+    res = conn.execute(sql).mappings().all()
+  return res
 
 
 def create_new_model(label_id: int,
@@ -191,21 +192,21 @@ def create_new_model(label_id: int,
                      extra: dict = None,
                      iteration: int = 1,
                      conn=None):
-  conn = conn or engine.connect()
-  res = conn.execute(model_info
-                     .insert()
-                     .values({"label_id": label_id,
-                              "model_uuid": model_id,
-                              "extra": extra or dict(),
-                              "status": status,
-                              "iteration": iteration})
-                     .returning(model_info.c.id,
-                                model_info.c.model_uuid)).fetchone()._asdict()
+  with engine.connect() as conn:
+    res = conn.execute(model_info
+                       .insert()
+                       .values({"label_id": label_id,
+                                "model_uuid": model_id,
+                                "extra": extra or dict(),
+                                "status": status,
+                                "iteration": iteration})
+                       .returning(model_info.c.id,
+                                  model_info.c.model_uuid)).fetchone()._asdict()
 
   return res
 
 
-engine = create_engine("sqlite:///test.db", echo=True)
+engine = create_engine("sqlite:///test.db", echo=True, pool_size=10, max_overflow=10, pool_recycle=1800)
 
 if __name__ == "__main__":
 

@@ -153,7 +153,7 @@ def create_label_with_train(project_id: int,
   print('End training')
 
   new_label_result = conn.execute(select(label_result.c.id).where(label_result.c.current_model == model_uuid)).fetchone()
-
+  conn.close()
   background_tasks.add_task(predict_pipeline,
                             data_predict=no_label_data,
                             model_id=model_uuid,
@@ -234,7 +234,7 @@ def get_project_models(label_id: int):
     models = coon.execute(select(*basic_model_cols)
                           .where(model_info.c.label_id == label_id)
                           .order_by(model_info.c.update_time.desc())).mappings().all()
-
+    coon.close()
     return models
 
 

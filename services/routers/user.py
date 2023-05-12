@@ -34,11 +34,11 @@ def user_list():
     get all user list
 
     """
-    conn = engine.connect()
-    users = conn.execute(select(user.c.name,
-                                user.c.id,
-                                user.c.create_time,
-                                user.c.update_time,
-                                user.c.token)).mappings().all()
+    with engine.connect() as conn:
+        users = conn.execute(select(user.c.name,
+                                    user.c.id,
+                                    user.c.create_time,
+                                    user.c.update_time,
+                                    user.c.token)).mappings().all()
     return users
 

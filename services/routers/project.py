@@ -126,9 +126,9 @@ def project_list():
     list all project
 
     """
-    conn = engine.connect()
     j = project.join(label_result, project.c.id == label_result.c.project_id)
-    projects = conn.execute(select(project.c.id,
+    with engine.connect() as conn:
+        projects = conn.execute(select(project.c.id,
                                    project.c.name,
                                    project.c.create_time,
                                    project.c.update_time,
@@ -338,7 +338,6 @@ def trigger_project_train(project_id: int,
     #                                         iteration=label_res['iteration'],
     #                                         conn=conn)
     # model_id = selected_model['model_uuid']
-
 
     project_data = mk.read(os.path.join(project_base_path,
                                         f'{project_res["file_path"]}.mk')).to_pandas()

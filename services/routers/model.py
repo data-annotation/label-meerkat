@@ -31,10 +31,9 @@ def get_model_info(model_id: int):
 
     """
 
-    conn = engine.connect()
     sql = select(*basic_model_cols).where(model_info.c.id == model_id)
-
-    model_info_record = conn.execute(sql).fetchone()._asdict()
+    with engine.connect() as conn:
+     model_info_record = conn.execute(sql).fetchone()._asdict()
     return model_info_record
 
 
@@ -45,8 +44,7 @@ def get_models_info_by_label_id(label_id: int):
 
     """
 
-    conn = engine.connect()
     sql = select(*basic_model_cols).where(model_info.c.label_id == label_id)
-
-    model_info_records = conn.execute(sql).mappings().all()
+    with engine.connect() as conn:
+      model_info_records = conn.execute(sql).mappings().all()
     return model_info_records

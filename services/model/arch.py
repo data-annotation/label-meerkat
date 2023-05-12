@@ -48,14 +48,14 @@ class MyCallback(TrainerCallback):
   @property
   def model_res_info(self):
     if not self.model_res:
-      conn = self.engine.connect()
       sql = (select(model_info.c.id,
                     model_info.c.model_uuid,
                     model_info.c.label_id,
                     model_info.c.extra,
                     model_info.c.iteration)
              .where(model_info.c.model_uuid == self.model_id))
-      res = conn.execute(sql).fetchone()._asdict()
+      with self.engine.connect() as conn:
+        res = conn.execute(sql).fetchone()._asdict()
       if res:
         self.model_res = res
     return self.model_res
@@ -82,18 +82,6 @@ class MyCallback(TrainerCallback):
       with self.engine.begin() as conn:
         conn.execute(sql)
     print("######### Training begin ###########")
-
-  # def on_epoch_begin(self, args, state, control, **kwargs):
-  #   if self.model_res_info:
-  #     sql = (model_info
-  #            .update()
-  #            .where(model_info.c.model_uuid == self.model_id)
-  #            .values({'extra': func.json_set(model_info.c.extra,
-  #                                            '$.progress',
-  #                                            f'{state.epoch}/{state.num_train_epochs}')}))
-  #     with self.engine.begin() as conn:
-  #       conn.execute(sql)
-  #   print(state.epoch, '#####', state.num_train_epochs)
 
   def on_epoch_end(self, args, state, control, **kwargs):
     if self.model_res_info:

@@ -23,8 +23,8 @@ router = APIRouter(
 
 
 @router.get("/predict/{label_id}")
-def predict_unlabeled_data(label_id: int, model_id: int = None):
-    f"""
+def predict_unlabeled_data(label_id: int, model_id: int = None, by_chatgpt: bool = False):
+    """
     predict unlabeled data using trained model
 
     if model id is None use the recent update model to predict
@@ -37,6 +37,7 @@ def predict_unlabeled_data(label_id: int, model_id: int = None):
     label_res = get_label_by_id(label_id)
     project_res = get_project_by_id(label_res["project_id"])
     model_res = get_models_by_label_id(label_id=label_id)
+
     if not label_res:
         raise HTTPException(status_code=400, detail="Model not found!")
 
@@ -83,13 +84,12 @@ def get_model_status(model_id: int):
       begin_time, float: timestamp
     """
 
-    conn = engine.connect()
     sql = select(model_info.c.id,
                  model_info.c.model_uuid,
                  model_info.c.label_id,
                  model_info.c.extra,
                  model_info.c.status,
                  model_info.c.iteration).where(model_info.c.id == model_id)
-
-    model_info_record = conn.execute(sql).fetchone()._asdict()
+    with engine.connect() as conn:
+      model_info_record = conn.execute(sql).fetchone()._asdict()
     return model_info_record
