@@ -115,7 +115,7 @@ class MyCallback(TrainerCallback):
       status = 1
       if self.current_step == self.total_steps:
         train_info.update({'train_end': True,
-                           'train_start': False,
+                           'train_begin': False,
                            'end_time': datetime.datetime.utcnow().isoformat()})
         status = 0
       sql = (model_info
