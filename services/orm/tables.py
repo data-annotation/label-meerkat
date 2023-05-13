@@ -192,16 +192,15 @@ def create_new_model(label_id: int,
                      extra: dict = None,
                      iteration: int = 1,
                      conn=None):
-  with engine.connect() as conn:
-    res = conn.execute(model_info
-                       .insert()
-                       .values({"label_id": label_id,
-                                "model_uuid": model_id,
-                                "extra": extra or dict(),
-                                "status": status,
-                                "iteration": iteration})
-                       .returning(model_info.c.id,
-                                  model_info.c.model_uuid)).fetchone()._asdict()
+  res = conn.execute(model_info
+                     .insert()
+                     .values({"label_id": label_id,
+                              "model_uuid": model_id,
+                              "extra": extra or dict(),
+                              "status": status,
+                              "iteration": iteration})
+                     .returning(model_info.c.id,
+                                model_info.c.model_uuid)).fetchone()._asdict()
 
   return res
 
