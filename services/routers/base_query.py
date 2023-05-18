@@ -81,7 +81,9 @@ def predict_unlabeled_data(label_id: int,
                                            column_2='sentence2',
                                            explanation_column='sentence2')
       predict_res = predict_res.to_pandas().to_dict('records')
-    return predict_res
+
+    return {'data_num': len(predict_res),
+            'predict_data': predict_res}
 
 
 @router.get("/models/{model_id}/status")
