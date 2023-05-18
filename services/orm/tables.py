@@ -205,6 +205,17 @@ def create_new_model(label_id: int,
   return res
 
 
+def get_model_by_id(model_id: int):
+  sql = select(model_info.c.id,
+               model_info.c.model_uuid,
+               model_info.c.label_id,
+               model_info.c.extra,
+               model_info.c.status,
+               model_info.c.iteration).where(model_info.c.id == model_id)
+  with engine.connect() as conn:
+    model_res = (conn.execute(sql).fetchone()._asdict())
+  return model_res if model_res else None
+
 engine = create_engine("sqlite:///test.db", echo=True, pool_size=10, max_overflow=10, pool_recycle=1800)
 
 if __name__ == "__main__":

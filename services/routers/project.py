@@ -27,6 +27,7 @@ from services.config import model_path
 from services.config import project_base_path
 from services.const import TrainingWay
 from services.model.AL import one_training_iteration
+from services.model.arch import predict_pipeline
 from services.orm.tables import create_new_model
 from services.orm.tables import engine
 from services.orm.tables import get_label_by_id
@@ -326,30 +327,20 @@ def trigger_project_train(project_id: int,
     model_res = get_models_by_label_id(label_id=label_id, deleted=False)
 
     new_model_flag = 0
-    # if not selected_model:
-    #   if model_num >= max_model_num_for_one_label:
-    #       raise HTTPException(status_code=400, detail="Can not create more models and all model is busy")
-    #   else:
-    #     with engine.begin() as conn:
-    #       new_model_flag = 1
-    #       selected_model = create_new_model(label_id=label_id,
-    #                                         model_id=model_id,
-    #                                         extra={'train_begin': True},
-    #                                         iteration=label_res['iteration'],
-    #                                         conn=conn)
-    # model_id = selected_model['model_uuid']
 
     project_data = mk.read(os.path.join(project_base_path,
                                         f'{project_res["file_path"]}.mk')).to_pandas()
     label_data = mk.read(os.path.join(label_base_path,
                                       f'{label_res["file_path"]}.mk')).to_pandas()
 
-    project_with_label = label_data.merge(project_data, how='left', on='id')
+    project_with_label = project_data.merge(label_data, how='left', on='id')
     # project_with_label = project_data.join(label_data.set_index('id'), on='id')
     data_columns = project_res['config'].get('columns', [])
     label_columns = label_res['config'].get('columns', [])
     columns = set(data_columns + label_columns)
-    all_labeled_project_data = project_with_label[project_with_label['label'].notnull()][columns]
+    all_labeled_project_data = project_with_label[project_with_label['label'].notnull()]
+    data_for_predict = project_with_label[project_with_label['label'].isnull()]
+
 
     if all_labeled_project_data.empty:
       raise HTTPException(status_code=400, detail="no label data for training")
@@ -394,6 +385,14 @@ def trigger_project_train(project_id: int,
                               explanation_column=label_columns[-1],
                               model_id=model_id,
                               old_model_id=model_id if not new_model_flag else None)
+
+    background_tasks.add_task(predict_pipeline,
+                              data_predict=data_for_predict,
+                              model_id=model_id,
+                              label_id=label_id,
+                              column_1=data_columns[0],
+                              column_2=data_columns[1],
+                              explanation_column=label_columns[-1])
 
     return {'model_id': selected_model['id'],
             'model_uuid': selected_model['model_uuid']}

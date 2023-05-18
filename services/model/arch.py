@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from typing import Union
 
+import meerkat as mk
 import numpy as np
 import datetime
 import pandas as pd
@@ -362,11 +363,15 @@ def predict_pipeline(data_predict: Union[list, dict, pd.DataFrame],
                                                                         explanation_column='generated_rationale')
   predicted_label = predict(prediction_model_batch_train_dataset, p_model_path)
 
-  with open(result_path+f'/{model_id}.json', 'w') as f:
-    json.dump({'status': 'finished',
-               'predicted_rationale': predicted_rationale,
-               'predicted_label': predicted_label},
-              f)
+  try:
+    predict_dataset = predict_dataset.remove_columns(['label', 'explanation', 'generated_rationale'])
+  except Exception:
+    pass
 
-  return predicted_rationale, predicted_label
+  predict_dataset = predict_dataset.add_column('label', predicted_label)
+  predict_dataset = predict_dataset.add_column('explanation', predicted_rationale)
+
+  mk.from_pandas(predict_dataset.to_pandas(), index=False).write(os.path.join(result_path, f'{model_id}.mk'))
+
+  return predicted_rationale, predicted_label, predict_dataset
 

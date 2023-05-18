@@ -1,5 +1,6 @@
 import os.path
 import meerkat as mk
+import numpy as np
 
 from fastapi import APIRouter
 from fastapi import HTTPException
@@ -7,7 +8,9 @@ from sqlalchemy import select
 
 from services.config import project_base_path
 from services.config import label_base_path
+from services.config import predict_result_path
 from services.orm.tables import engine
+from services.orm.tables import get_model_by_id
 from services.orm.tables import model_info
 from services.orm.tables import get_label_by_id
 from services.orm.tables import get_models_by_label_id
@@ -22,8 +25,12 @@ router = APIRouter(
 )
 
 
-@router.get("/predict/{label_id}")
-def predict_unlabeled_data(label_id: int, model_id: int = None, by_chatgpt: bool = False):
+
+@router.post("/predict/{label_id}")
+def predict_unlabeled_data(label_id: int,
+                           model_id: int,
+                           data_ids: list = None,
+                           re_predict: bool = False):
     """
     predict unlabeled data using trained model
 
@@ -34,36 +41,47 @@ def predict_unlabeled_data(label_id: int, model_id: int = None, by_chatgpt: bool
 
     """
 
-    label_res = get_label_by_id(label_id)
+    model_res = get_model_by_id(model_id)
+    label_res = get_label_by_id(model_res['label_id'])
     project_res = get_project_by_id(label_res["project_id"])
-    model_res = get_models_by_label_id(label_id=label_id)
 
-    if not label_res:
-        raise HTTPException(status_code=400, detail="Model not found!")
+    if not all([label_res, project_res, model_res]):
+        raise HTTPException(status_code=400, detail="Model/Label/Project not found!")
 
-    selected_model, model_num = select_model_for_train(model_res)
-    model_id = selected_model['model_uuid']
-    project_data = mk.read(os.path.join(project_base_path,
-                                        f'{project_res["file_path"]}.mk')).to_pandas()
-    label_data = mk.read(os.path.join(label_base_path,
-                                      f'{label_res["file_path"]}.mk')).to_pandas()
-    merge_data = project_data.merge(label_data, how='left', on='id')
+    model_id = model_res['model_uuid']
+    if not re_predict:
+      last_predict_res = mk.read(os.path.join(predict_result_path,
+                                              str(label_id),
+                                              f'{model_id}.mk'))
+      if data_ids:
+        last_predict_res = last_predict_res[last_predict_res['id'].isin(data_ids)]
+      predict_res = (last_predict_res
+                     .to_pandas()
+                     .fillna(np.nan)
+                     .replace([np.nan], [None])
+                     .to_dict('records'))
+    else:
+      project_data = mk.read(os.path.join(project_base_path,
+                                          f'{project_res["file_path"]}.mk')).to_pandas()
+      label_data = mk.read(os.path.join(label_base_path,
+                                        f'{label_res["file_path"]}.mk')).to_pandas()
+      merge_data = project_data.merge(label_data, how='left', on='id')
 
-    # project_with_label = project_data.join(label_data.set_index('id'), on='id')
-    data_columns = project_res['config'].get('columns', [])
-    label_columns = label_res['config'].get('columns', [])
-    columns = set(data_columns + label_columns)
+      data_columns = project_res['config'].get('columns', [])
+      label_columns = label_res['config'].get('columns', [])
+      columns = set(data_columns + label_columns)
 
-    unlabeled_data = merge_data[merge_data['label'].isnull()][columns]
-    predicted_rationale, predicted_label = predict_pipeline(unlabeled_data, model_id=model_id, label_id=label_id,
-                                                            column_1='sentence1', column_2='sentence2', explanation_column='sentence2')
-    pre_dict = {}
-    pre_dict['unlabeled_data'] = []
-    for s1, s2 in zip(unlabeled_data['sentence1'].to_numpy(), unlabeled_data['sentence2'].to_numpy()):
-        pre_dict['unlabeled_data'].append([s1, s2])
-    pre_dict['explanation'] = predicted_rationale
-    pre_dict['label'] = predicted_label
-    return pre_dict
+      unlabeled_data = merge_data[merge_data['label'].isnull()][columns]
+      if data_ids:
+        unlabeled_data = unlabeled_data[unlabeled_data['id'].isin(data_ids)]
+      _, _, predict_res = predict_pipeline(unlabeled_data,
+                                           model_id=model_id,
+                                           label_id=label_id,
+                                           column_1='sentence1',
+                                           column_2='sentence2',
+                                           explanation_column='sentence2')
+      predict_res = predict_res.to_pandas().to_dict('records')
+    return predict_res
 
 
 @router.get("/models/{model_id}/status")
