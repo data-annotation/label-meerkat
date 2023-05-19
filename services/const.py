@@ -11,8 +11,13 @@ class TrainingWay(str, Enum):
   continued = 'continued'
 
 
-
 class GetUnlabeledWay(str, Enum):
   random = 'random'
   similarity = 'similarity'
+
+
+class TaskType(str, Enum):
+  classification = 'classification'
+  sequence_tag = 'sequence_tag'
+  relation = 'relation'
 

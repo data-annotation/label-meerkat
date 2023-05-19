@@ -26,6 +26,7 @@ from services.config import max_model_num_for_one_label
 from services.config import model_path
 from services.config import project_base_path
 from services.const import TrainingWay
+from services.const import TaskType
 from services.model.AL import one_training_iteration
 from services.model.arch import predict_pipeline
 from services.orm.tables import create_new_model
@@ -39,7 +40,6 @@ from services.orm.tables import label_result
 from services.orm.tables import model_info
 from services.orm.tables import project
 from services.orm.tables import user
-from services.routers import select_model_for_train
 from services.routers import encode_model
 
 router = APIRouter(
@@ -50,18 +50,56 @@ router = APIRouter(
 
 
 class ConfigName(str, Enum):
-    esnil = 'esnil'
+    esnli = 'esnli'
 
+
+label_schema = {
+  # 'Time flies like an arrow; fruit flies like a banana.'
+  TaskType.sequence_tag: [{'s': 0, 'e': 4, 'label': 'aaa'},
+                          {'s': 19, 'e': 24, 'label': 'bbb'}],
+  TaskType.classification: 'aaa',
+  TaskType.relation: 'bbb',
+}
 
 config_mapping = {
-    ConfigName.esnil.value: {'columns': ['sentence1', 'sentence2', 'id'],
-                             'default_label_config': {'choice': ['entailment',
-                                                                 'neutral',
-                                                                 'contradiction'],
-                                                      'columns': ['label', 'id', 'explanation'],
-                                                      'label_column': 'label',
-                                                      'label_data_type': 'index',
-                                                      'id_column': 'id'}}
+  ConfigName.esnli: {'columns': ['sentence1', 'sentence2', 'id'],
+                     'data_columns': ['sentence1', 'sentence2'],
+                     'id_columns': ['id'],
+                     'default_columns': ['id'],
+                     'default_label_config': {'labels': ['entailment',
+                                                         'neutral',
+                                                         'contradiction'],
+                                              'columns': ['label', 'id', 'explanation'],
+                                              'label_column': 'label',
+                                              'label_data_type': 'index',
+                                              'id_column': 'id'}},
+
+  TaskType.sequence_tag: {'columns': ['sentence', 'id'],
+                          'data_columns': ['sentence'],
+                          'id_columns': ['id'],
+                          'default_columns': ['id'],
+                          'default_label_config': {'columns': ['label', 'id'],
+                                                   'label_column': 'label',
+                                                   'labels': ['aaa', 'bbb', 'ccc'],
+                                                   'id_column': 'id'}},
+
+  TaskType.classification: {'columns': ['sentence'],
+                            'data_columns': ['sentence'],
+                            'id_columns': ['id'],
+                            'default_columns': ['id'],
+                            'default_label_config': {'columns': ['label', 'id'],
+                                                     'label_column': 'label',
+                                                     'labels': ['aaa', 'bbb', 'ccc'],
+                                                     'id_column': 'id'}},
+
+  TaskType.relation: {'columns': ['sentence1', 'sentence2', 'id1', 'id2'],
+                      'data_columns': ['sentence1', 'sentence2'],
+                      'id_columns': ['id1', 'id2'],
+                      'default_columns': ['id'],
+                      'default_label_config': {'columns': ['label', 'id1', 'id2'],
+                                               'label_columns': ['label'],
+                                               'labels': ['aaa', 'bbb', 'ccc'],
+                                               'id_columns': ['id']}},
 }
 
 splitter = SentenceSplitter(language='en')
@@ -159,7 +197,7 @@ def new_project(files: List[UploadFile],
                 name: str = None,
                 init_label: bool = True,
                 config: str = Form(None),
-                config_name: ConfigName = ConfigName.esnil):
+                task_type: TaskType = TaskType.relation):
     """upload multi files by user
     file type supported is txt,json,csv,xlsx
 

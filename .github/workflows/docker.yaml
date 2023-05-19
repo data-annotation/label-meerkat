@@ -3,7 +3,8 @@ name: Build and push docker
 
 on:
   push:
-
+    branches:
+      - master
 jobs:
   reusable-build-push:
     name: Build and push docker
