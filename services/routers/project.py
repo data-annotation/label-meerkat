@@ -25,6 +25,7 @@ from services.config import label_base_path
 from services.config import max_model_num_for_one_label
 from services.config import model_path
 from services.config import project_base_path
+from services.const import ConfigName
 from services.const import TrainingWay
 from services.const import TaskType
 from services.model.AL import one_training_iteration
@@ -48,59 +49,6 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-
-class ConfigName(str, Enum):
-    esnli = 'esnli'
-
-
-label_schema = {
-  # 'Time flies like an arrow; fruit flies like a banana.'
-  TaskType.sequence_tag: [{'s': 0, 'e': 4, 'label': 'aaa'},
-                          {'s': 19, 'e': 24, 'label': 'bbb'}],
-  TaskType.classification: 'aaa',
-  TaskType.relation: 'bbb',
-}
-
-config_mapping = {
-  ConfigName.esnli: {'columns': ['sentence1', 'sentence2', 'id'],
-                     'data_columns': ['sentence1', 'sentence2'],
-                     'id_columns': ['id'],
-                     'default_columns': ['id'],
-                     'default_label_config': {'labels': ['entailment',
-                                                         'neutral',
-                                                         'contradiction'],
-                                              'columns': ['label', 'id', 'explanation'],
-                                              'label_column': 'label',
-                                              'label_data_type': 'index',
-                                              'id_column': 'id'}},
-
-  TaskType.sequence_tag: {'columns': ['sentence', 'id'],
-                          'data_columns': ['sentence'],
-                          'id_columns': ['id'],
-                          'default_columns': ['id'],
-                          'default_label_config': {'columns': ['label', 'id'],
-                                                   'label_column': 'label',
-                                                   'labels': ['aaa', 'bbb', 'ccc'],
-                                                   'id_column': 'id'}},
-
-  TaskType.classification: {'columns': ['sentence'],
-                            'data_columns': ['sentence'],
-                            'id_columns': ['id'],
-                            'default_columns': ['id'],
-                            'default_label_config': {'columns': ['label', 'id'],
-                                                     'label_column': 'label',
-                                                     'labels': ['aaa', 'bbb', 'ccc'],
-                                                     'id_column': 'id'}},
-
-  TaskType.relation: {'columns': ['sentence1', 'sentence2', 'id1', 'id2'],
-                      'data_columns': ['sentence1', 'sentence2'],
-                      'id_columns': ['id1', 'id2'],
-                      'default_columns': ['id'],
-                      'default_label_config': {'columns': ['label', 'id1', 'id2'],
-                                               'label_columns': ['label'],
-                                               'labels': ['aaa', 'bbb', 'ccc'],
-                                               'id_columns': ['id']}},
-}
 
 splitter = SentenceSplitter(language='en')
 
@@ -168,20 +116,20 @@ def project_list():
     j = project.join(label_result, project.c.id == label_result.c.project_id)
     with engine.connect() as conn:
         projects = conn.execute(select(project.c.id,
-                                   project.c.name,
-                                   project.c.create_time,
-                                   project.c.update_time,
-                                   func.json_group_array(
-                                       func.json_object(
-                                           'label_id', label_result.c.id,
-                                           'user_id', label_result.c.user_id,
-                                           'config', func.json(label_result.c.config),
-                                           'current_model', label_result.c.current_model,
-                                           'create_time', label_result.c.create_time,
-                                           'update_time', label_result.c.update_time
-                                       )
-                                   ).label('labels'))
-                            .select_from(j).group_by(project.c.id)).fetchall()
+                                       project.c.name,
+                                       project.c.create_time,
+                                       project.c.update_time,
+                                       func.json_group_array(
+                                           func.json_object(
+                                               'label_id', label_result.c.id,
+                                               'user_id', label_result.c.user_id,
+                                               'config', func.json(label_result.c.config),
+                                               'current_model', label_result.c.current_model,
+                                               'create_time', label_result.c.create_time,
+                                               'update_time', label_result.c.update_time
+                                           )
+                                       ).label('labels'))
+                                .select_from(j).group_by(project.c.id)).fetchall()
     res = []
     for p in projects:
         p = p._asdict()
@@ -197,6 +145,7 @@ def new_project(files: List[UploadFile],
                 name: str = None,
                 init_label: bool = True,
                 config: str = Form(None),
+                config_name: ConfigName = ConfigName.esnli,
                 task_type: TaskType = TaskType.relation):
     """upload multi files by user
     file type supported is txt,json,csv,xlsx
@@ -218,8 +167,6 @@ def new_project(files: List[UploadFile],
         for file in files:
             if file.filename.endswith('.csv'):
                 res = pd.concat([res, pd.read_csv(io.BytesIO(file.file.read()))], ignore_index=True)
-            elif file.filename.endswith('xlsx'):
-                res = pd.concat([res, pd.read_excel(file.file.read())], ignore_index=True)
             elif file.filename.endswith('json'):
                 res = pd.concat([res, pd.DataFrame(json.load(file.file))], ignore_index=True)
     except Exception as e:
