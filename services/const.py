@@ -20,6 +20,7 @@ class TaskType(str, Enum):
     classification = 'classification'
     sequence_tag = 'sequence_tag'
     relation = 'relation'
+    esnli = 'esnli'
 
 
 class ConfigName(str, Enum):
@@ -50,19 +51,16 @@ CONFIG_MAPPING = {
                                                            'contradiction'],
                                                 'columns': ['label', 'id', 'explanation'],
                                                 'label_column': 'label',
-                                                'label_data_type': 'index',
-                                                'id_column': 'id'}},
+                                                'id_columns': ['id']}},
     ConfigName.fair_tale: {'columns': ['sentence', 'id'],
                            'data_columns': ['sentence'],
                            'id_columns': ['id'],
                            'task_type': TaskType.classification.value,
-                           'default_label_config': {'labels': ['entailment',
-                                                               'neutral',
-                                                               'contradiction'],
-                                                    'columns': ['label', 'id', 'explanation'],
+                           'default_label_config': {'labels': ['positive',
+                                                               'negative'],
+                                                    'columns': ['label', 'id'],
                                                     'label_column': 'label',
-                                                    'label_data_type': 'index',
-                                                    'id_column': 'id'}},
+                                                    'id_columns': ['id']}},
     TaskType.sequence_tag: {'columns': ['sentence', 'id'],
                             'data_columns': ['sentence'],
                             'id_columns': ['id'],

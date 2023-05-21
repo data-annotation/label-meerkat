@@ -3,6 +3,7 @@ import pandas as pd
 from torch import nn
 import torch
 from typing import List, Dict, Tuple, Type, Union
+from services.model import device
 
 
 # Text classification model
@@ -15,42 +16,37 @@ class TextClassifier(nn.Module):
         logits = self.fc(embeddings)
         return logits
 
-# Load the pre-trained BART model and tokenizer
-model_name = 'facebook/bart-base'
-tokenizer = AutoTokenizer.from_pretrained(model_name)
-model = BartModel.from_pretrained(model_name).to('cuda')
+def load_model(model_id: str):
+    # Load the pre-trained BART model and tokenizer
+    model_id = model_id or 'facebook/bart-base'
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model = BartModel.from_pretrained(model_id).to(device)
+    return model, tokenizer
 
-# Initialize and train the text classification model
-num_classes = 1
-hidden_size = 768
-
-classifier = TextClassifier(num_classes, hidden_size).to('cuda')
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(classifier.parameters(), lr=0.001)
+def get_classifier(num_classes: str=1, hidden_size: int = 768):
+    # Initialize and train the text classification model
+    classifier = TextClassifier(num_classes, hidden_size).to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(classifier.parameters(), lr=0.001)
+    return classifier, criterion, optimizer
 
 
 # Perform inference on new texts
-def predict(data: Union[str, List[str]], model_path: str = 'model.pth'):
-
-    # new_texts = ['Some example text', 'Another example text']
-    if isinstance(data, str):
-        data = [data]
-
-    model = torch.load(model_path)
-    model.to('cuda')
+def predict(data: list, model_path: str):
+    model, tokenizer = load_model(model_path)
     model.eval()
-
+    classifier, criterion, optimizer = get_classifier()
     # Tokenize and encode the input texts
     input_ids = []
     attention_masks = []
-    for text in texts:
+    for text in data:
         encoding = tokenizer(text, padding='max_length', truncation=True, max_length=512, return_tensors='pt')
         input_ids.append(encoding['input_ids'].squeeze())
         attention_masks.append(encoding['attention_mask'].squeeze())
 
     # Convert lists to tensors
-    input_ids = torch.stack(input_ids).to('cuda')
-    attention_masks = torch.stack(attention_masks).to('cuda')
+    input_ids = torch.stack(input_ids).to(device)
+    attention_masks = torch.stack(attention_masks).to(device)
 
     # Forward pass
     with torch.no_grad():
@@ -60,28 +56,20 @@ def predict(data: Union[str, List[str]], model_path: str = 'model.pth'):
         predicted_labels = torch.argmax(predictions, dim=1)
 
     # Print the predicted labels
-    for text, label in zip(new_texts, predicted_labels):
-        print(f'Text: {text}, Predicted Label: {label.item()}')
+    # for text, label in zip(new_texts, predicted_labels):
+    #     print(f'Text: {text}, Predicted Label: {label.item()}')
+    return predicted_labels
 
 
-def train(texts, labels, batch_size: int = 20, num_epochs: int = 20, model_output_path: str = None):
-    
-    if isinstance(texts, str):
-        texts = [texts]
-
-    # Create a DataFrame
-    df = pd.DataFrame({'text': texts, 'label': labels})
-
-    # Save DataFrame to CSV file
-    df.to_csv('data.csv', index=False)
-
-    # Load and preprocess the CSV file
-    data = pd.read_csv('data.csv')
-    texts = data['text'].tolist()
-    labels = data['text'].tolist()
-
+def train(texts: list,
+          labels: list,
+          batch_size: int = 20,
+          num_epochs: int = 20,
+          old_model: str = None,
+          new_model: str = 'test_model'):
+    model, tokenizer= load_model(old_model)
     model.train()
-
+    classifier, criterion, optimizer = get_classifier()
     # Tokenize and encode the input texts
     input_ids = []
     attention_masks = []
@@ -91,8 +79,8 @@ def train(texts, labels, batch_size: int = 20, num_epochs: int = 20, model_outpu
         attention_masks.append(encoding['attention_mask'].squeeze())
 
     # Convert lists to tensors
-    input_ids = torch.stack(input_ids).to('cuda')
-    attention_masks = torch.stack(attention_masks).to('cuda')
+    input_ids = torch.stack(input_ids).to(device)
+    attention_masks = torch.stack(attention_masks).to(device)
 
     # Forward pass
     with torch.no_grad():
@@ -119,20 +107,21 @@ def train(texts, labels, batch_size: int = 20, num_epochs: int = 20, model_outpu
             if (step + 1) % 1 == 0:
                 print(f'Epoch [{epoch+1}/{num_epochs}], Step [{step+1}/{total_steps}], Loss: {loss.item()}')
     
-    torch.save(model, 'model.pth')
+    torch.save(model, new_model)
 
-texts = [
-    "This is a positive sentence.",
-    "I'm feeling great today.",
-    "Negative feedback received.",
-    "The product is not good.",
-]
+if __name__ == "__main__":
+    texts = [
+        "This is a positive sentence.",
+        "I'm feeling great today.",
+        "Negative feedback received.",
+        "The product is not good.",
+    ]
 
-labels = [1, 1, 0, 0]  # 1 for positive, 0 for negative
+    labels = [1, 1, 0, 0]  # 1 for positive, 0 for negative
 
-train(texts, labels)
+    train(texts, labels)
 
 
-new_texts = ['Some example text', 'Another example text']
+    new_texts = ['Some example text', 'Another example text']
 
-predict(new_texts)
+    # predict(new_texts, 'test_model')

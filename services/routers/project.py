@@ -17,6 +17,8 @@ from fastapi import Form
 from fastapi import HTTPException
 from fastapi import Response
 from fastapi import UploadFile
+from pydantic import BaseModel
+
 from sentence_splitter import SentenceSplitter
 from sqlalchemy import func
 from sqlalchemy import select
@@ -138,6 +140,21 @@ def project_list():
     return res
 
 
+class LabelConfig(BaseModel):
+    columns: list
+    labels: list
+    label_column: str = 'label'
+    id_columns: list = ['id']
+
+
+class Config(BaseModel):
+    columns: list
+    data_columns: list
+    id_columns: list
+    task_type: TaskType
+    default_label_config: LabelConfig | None = None
+
+
 @router.post("")
 def new_project(files: List[UploadFile],
                 response: Response,
@@ -145,8 +162,7 @@ def new_project(files: List[UploadFile],
                 name: str = None,
                 init_label: bool = True,
                 config: str = Form(None),
-                config_name: ConfigName = ConfigName.esnli,
-                task_type: TaskType = TaskType.relation):
+                config_name: ConfigName = ConfigName.esnli):
     """upload multi files by user
     file type supported is txt,json,csv,xlsx
 
@@ -165,14 +181,14 @@ def new_project(files: List[UploadFile],
     try:
         res = pd.DataFrame(columns=config['columns'])
         for file in files:
-            if file.filename.endswith('.csv'):
+            if file.filename.endswith('csv'):
                 res = pd.concat([res, pd.read_csv(io.BytesIO(file.file.read()))], ignore_index=True)
             elif file.filename.endswith('json'):
                 res = pd.concat([res, pd.DataFrame(json.load(file.file))], ignore_index=True)
+            else:
+                raise HTTPException(status_code=400, detail="not implement")
     except Exception as e:
-        # raise e
-        response.status_code = 400
-        return 'Process data error, please check data content'
+        raise HTTPException(status_code=400, detail="'Process data error, please check data content'")
 
     df = mk.DataFrame.from_pandas(res, index=False)
     if 'id' not in config['columns']:
@@ -193,7 +209,7 @@ def new_project(files: List[UploadFile],
                                              'file_path': project_data_file,
                                              'config': config}).returning(project.c.id)).scalar_one()
 
-            if inserted:
+            if inserted and config.get('default_label_config'):
                 label_config = config.get('default_label_config')
                 init_label_data = pd.DataFrame(columns=label_config.get('columns'), index=None)
                 new_label_uuid = uuid.uuid4().hex
@@ -215,10 +231,7 @@ def new_project(files: List[UploadFile],
 
 @router.get("/{project_id}")
 def get_single_project_meta_info(project_id: int,
-                                 response: Response,
-                                 label_id: int = None,
-                                 size: int = 1000,
-                                 num: int = 0):
+                                 response: Response):
     """
     get a project meta info
 
@@ -321,6 +334,8 @@ def trigger_project_train(project_id: int,
     project_with_label = project_data.merge(label_data, how='left', on='id')
     # project_with_label = project_data.join(label_data.set_index('id'), on='id')
     data_columns = project_res['config'].get('columns', [])
+    task_type = project_res['config'].get('columns', TaskType.esnli)
+
     label_columns = label_res['config'].get('columns', [])
     columns = set(data_columns + label_columns)
     all_labeled_project_data = project_with_label[project_with_label['label'].notnull()]
