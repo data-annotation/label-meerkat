@@ -1,90 +1,78 @@
 import torch
-from torch.utils.data import DataLoader, Dataset
-from transformers import BartForSequenceClassification, BartTokenizer, AdamW
+from transformers import BartTokenizer, BartForSequenceClassification, TrainingArguments, Trainer
+from datasets import Dataset
 
 
-def convert_label_to_index(labels, label_list):
-    str_to_index = {string: index for index, string in enumerate(label_list)}
-    index_list = [str_to_index[label] for label in labels]
-    return index_list
+class SentenceClassifier:
+    def __init__(self, old_model='facebook/bart-base', num_labels=2, label_list: list=None):
+        label_list = label_list or ["positive", "negative"]
+        self.id2label = {i: l for i, l in enumerate(label_list)}
+        self.label2id = {v: k for k, v in self.id2label.items()}
+        self.tokenizer = BartTokenizer.from_pretrained(old_model)
+        self.model = BartForSequenceClassification.from_pretrained(old_model,
+                                                                   num_labels=num_labels)
 
-class TextDataset(Dataset):
-    def __init__(self, texts, labels, tokenizer, label_list: list):
-        self.texts = texts
-        self.labels = convert_label_to_index(labels, label_list)
-        self.tokenizer = tokenizer
+    def train(self, data, labels,
+              batch_size=10, num_epochs=5,
+              old_model='facebook/bart-base',
+              output_model='test_model', device='cpu'):
+        labels = [self.label2id[i] for i in labels]
+        train_dataset = Dataset.from_dict({'text': data, 'label': labels})
+        train_dataset = train_dataset.map(lambda example: self.tokenizer(example['text'],
+                                                                         padding='max_length',
+                                                                         truncation=True,
+                                                                         max_length=512),
+                                          batched=True)
+        train_dataset.set_format('torch', columns=['input_ids', 'attention_mask', 'label'])
 
-    def __len__(self):
-        return len(self.texts)
+        training_args = TrainingArguments(
+            output_dir=output_model,
+            num_train_epochs=num_epochs,
+            per_device_train_batch_size=batch_size,
+            logging_dir='./logs',
+            logging_steps=10,
+            disable_tqdm=True,
+        )
 
-    def __getitem__(self, idx):
-        text = self.texts[idx]
-        label = self.labels[idx]
-        inputs = self.tokenizer(text, return_tensors='pt', padding=True, truncation=True)
-        inputs['labels'] = torch.tensor(label)
-        return inputs
+        trainer = Trainer(
+            model=self.model,
+            args=training_args,
+            train_dataset=train_dataset,
+            eval_dataset=train_dataset
+        )
 
+        trainer.train()
 
-def train(data: list,
-          labels: list,
-          batch_size: int = 20,
-          num_epochs: int = 20,
-          old_model: str = 'facebook/bart-base',
-          output_model: str = 'test_model',
-          label_list: list = None,
-          device='cpu'):
-    label_list = label_list or ['positive', 'negative']
-    tokenizer = BartTokenizer.from_pretrained(old_model)
-    model = BartForSequenceClassification.from_pretrained(old_model, num_labels=len(label_list))
-    model.to(device)
+        self.model.save_pretrained(output_model)
+        return output_model
 
-    dataset = TextDataset(data, labels, tokenizer, label_list=label_list)
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+    def predict(self, data, model_path='test_model', device='cpu'):
+        self.model = BartForSequenceClassification.from_pretrained(model_path)
+        self.model.to(device)
+        self.model.eval()
 
-    optimizer = AdamW(model.parameters(), lr=5e-5)
+        predictions = []
+        for text in data:
+            encoding = self.tokenizer(text, return_tensors='pt', padding=True, truncation=True)
+            input_ids = encoding['input_ids'].to(device)
+            attention_mask = encoding['attention_mask'].to(device)
 
-    for epoch in range(num_epochs):
-        model.train()
-        for batch in dataloader:
-            batch = {k: v.to(device) for k, v in batch.items()}
-            outputs = model(**batch)
-            loss = outputs.loss
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
-        print(f"Epoch {epoch + 1}/{num_epochs} completed")
+            with torch.no_grad():
+                outputs = self.model(input_ids, attention_mask=attention_mask)
+                logits = outputs.logits
+                predictions.append(torch.argmax(logits).item())
 
-    model.save_pretrained(output_model)
-    return output_model
-
-
-def predict(data: list, model_path: str = 'test_model'):
-    tokenizer = BartTokenizer.from_pretrained(model_path)
-    model = BartForSequenceClassification.from_pretrained(model_path)
-    model.eval()
-
-    inputs = tokenizer(data, return_tensors='pt', padding=True, truncation=True)
-    with torch.no_grad():
-        outputs = model(**inputs)
-    logits = outputs.logits
-    predictions = torch.argmax(logits, dim=-1).tolist()
-
-    return predictions
+        return predictions
 
 
 if __name__ == "__main__":
-    # 训练数据和标签
-    train_data = ['This is a positive sentence.', "I'm feeling great today.", 'I feel so sorry', 'The product is not good.']
-    train_labels = ['positive', 'positive', 'negative', 'negative']
+    data = ['This is a positive sentence.', 'I\'m feeling great today.', 'Negative feedback received.',
+            'The product is not good.']
+    labels = ['positive', 'positive', 'negative', 'positive']
 
-    # 训练模型
-    model_path = train(train_data, train_labels, num_epochs=5)
+    classifier = SentenceClassifier()
+    model_path = classifier.train(data, labels)
 
-    # 预测数据
-    test_data = ['I love this product.', 'This is a terrible experience.']
+    predictions = classifier.predict(['I feel good', "it's so bad"], model_path)
 
-    # 使用训练好的模型进行预测
-    predictions = predict(test_data, model_path)
-
-    # 打印预测结果
     print(predictions)

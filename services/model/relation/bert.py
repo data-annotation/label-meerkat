@@ -103,40 +103,37 @@ import os
 import gzip
 import csv
 
-def train(sts_dataset_path, batch_size = 16, num_epochs = 4):
+def train(train_samples, output_path: str, batch_size = 16, num_epochs = 4):
     train_dataloader = DataLoader(train_samples, shuffle=True, batch_size=batch_size)
 
     # Use Huggingface/transformers model (like BERT, RoBERTa, XLNet, XLM-R) for mapping tokens to embeddings
     word_embedding_model = models.Transformer(model_name)
     # Apply mean pooling to get one fixed sized sentence vector
     pooling_model = models.Pooling(word_embedding_model.get_word_embedding_dimension(),
-                               pooling_mode_mean_tokens=True,
-                               pooling_mode_cls_token=False,
-                               pooling_mode_max_tokens=False)
+                                   pooling_mode_mean_tokens=True,
+                                   pooling_mode_cls_token=False,
+                                   pooling_mode_max_tokens=False)
 
     model = SentenceTransformer(modules=[word_embedding_model, pooling_model])
     train_loss = losses.CosineSimilarityLoss(model=model)
-
-    model_save_path = 'model.pth'
 
     logging.info("Read STSbenchmark dev dataset")
     evaluator = EmbeddingSimilarityEvaluator.from_input_examples(dev_samples, name='sts-dev')
 
 
     # Configure the training. We skip evaluation in this example
-    warmup_steps = math.ceil(len(train_dataloader) * num_epochs  * 0.1) #10% of train data for warm-up
+    warmup_steps = math.ceil(len(train_dataloader) * num_epochs * 0.1) #10% of train data for warm-up
     logging.info("Warmup-steps: {}".format(warmup_steps))
-
 
     # Train the model
     model.fit(train_objectives=[(train_dataloader, train_loss)],
-            evaluator=evaluator,
-            epochs=num_epochs,
-            evaluation_steps=1000,
-            warmup_steps=warmup_steps,
-            output_path=model_save_path)
+              evaluator=evaluator,
+              epochs=num_epochs,
+              warmup_steps=warmup_steps,
+              save_best_model=True,
+              output_path=output_path)
 
-    return model_save_path
+    return output_path
 ##############################################################################
 #
 # Load the stored model and evaluate its performance on STS benchmark dataset
@@ -146,6 +143,7 @@ def predict(model_save_path, test_samples):
     model = SentenceTransformer(model_save_path)
     test_evaluator = EmbeddingSimilarityEvaluator.from_input_examples(test_samples, name='sts-test')
     test_evaluator(model, output_path=model_save_path)
+
 
 if __name__ == '__main__':
     #### Just some code to print debug information to stdout
@@ -184,5 +182,5 @@ if __name__ == '__main__':
 
     model_name = 'bert-base-uncased'
     
-    model_save_path = train(sts_dataset_path)
+    model_save_path = train(train_samples, 'ok_path')
     predict(model_save_path, test_samples)
