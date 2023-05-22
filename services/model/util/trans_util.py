@@ -14,3 +14,15 @@ def trans_data_to_dataset(raw_data) -> Dataset:
   return trans_dataset
 
 
+
+def label2id(labels: list, label_list: list = None):
+  label_list = label_list or set(labels)
+  id_mapping = {l: i for i, l in enumerate(label_list)}
+  return [id_mapping[l] for l in labels]
+
+
+
+
+def id2label(labels: list, label_list: list):
+  id_mapping = {i: l for i, l in enumerate(label_list)}
+  return [id_mapping[l] for l in labels]
