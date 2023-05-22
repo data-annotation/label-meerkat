@@ -1,133 +1,86 @@
-import pandas as pd
-from torch import nn
 import torch
-from transformers import BertTokenizer, BertModel
-from typing import List, Dict, Tuple, Type, Union
-
-# Text classification model
-class TextClassifier(nn.Module):
-    def __init__(self, num_classes, hidden_size):
-        super(TextClassifier, self).__init__()
-        self.fc = nn.Linear(hidden_size, num_classes)
-
-    def forward(self, embeddings):
-        logits = self.fc(embeddings)
-        return logits
-
-model_name = 'bert-base-uncased'
-model = BertModel.from_pretrained(model_name).to('cuda')
-tokenizer = BertTokenizer.from_pretrained(model_name)
-
-# Initialize and train the text classification model
-num_classes = 1
-hidden_size = 768
-
-classifier = TextClassifier(num_classes, hidden_size).to('cuda')
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.Adam(classifier.parameters(), lr=0.001)
+from transformers import BertTokenizer, BertForSequenceClassification, TrainingArguments, Trainer
+from datasets import Dataset
+from services.model.util.trans_util import label2id, id2label
+from services.model import device
 
 
-# Perform inference on new texts
-def predict(data: Union[str, List[str]], model_path: str = 'model.pth'):
+default_model = 'bert-base-uncased'
 
-    # new_texts = ['Some example text', 'Another example text']
-    if isinstance(data, str):
-        data = [data]
+def load_from_pretrained(model_path: str = default_model,
+                         num_labels: int = 2):
+    tokenizer = BertTokenizer.from_pretrained(model_path)
+    model = BertForSequenceClassification.from_pretrained(model_path,
+                                                          num_labels=num_labels)
+    return model, tokenizer
 
-    model = torch.load(model_path)
-    model.to('cuda')
+
+def train(data,
+          labels,
+          batch_size=10,
+          num_epochs=5,
+          old_model=default_model,
+          output_model='test_model',
+          label_list=None,
+          device=device):
+    labels = label2id(labels, label_list = label_list)
+    model, tokenizer = load_from_pretrained(old_model, len(label_list))
+    train_dataset = Dataset.from_dict({'text': data, 'label': labels})
+    train_dataset = train_dataset.map(lambda example: tokenizer(example['text'],
+                                                                padding='max_length',
+                                                                truncation=True,
+                                                                max_length=512),
+                                      batched=True)
+    train_dataset.set_format('torch', columns=['input_ids', 'attention_mask', 'label'])
+
+    training_args = TrainingArguments(
+        output_dir=output_model,
+        overwrite_output_dir=True,
+        num_train_epochs=num_epochs,
+        per_device_train_batch_size=batch_size,
+        logging_dir='./logs',
+        logging_steps=10,
+        disable_tqdm=True,
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=train_dataset
+    )
+
+    trainer.train()
+    tokenizer.save_pretrained(output_model)
+    return output_model
+
+
+def predict(data, model_path='test_model', num_label = 2, device=device):
+    model, tokenizer = load_from_pretrained(model_path, num_label)
+    model.to(device)
     model.eval()
 
-    new_tokens = tokenizer.batch_encode_plus(
-        data,
-        truncation=True,
-        padding=True,
-        return_tensors='pt'
-    )
-    new_input_ids = new_tokens['input_ids'].to('cuda')
-    new_attention_mask = new_tokens['attention_mask'].to('cuda')
+    predictions = []
+    for text in data:
+        encoding = tokenizer(text, return_tensors='pt', padding=True, truncation=True)
+        input_ids = encoding['input_ids'].to(device)
+        attention_mask = encoding['attention_mask'].to(device)
 
-    with torch.no_grad():
-        new_outputs = model(new_input_ids, new_attention_mask)
-        new_embeddings = new_outputs.last_hidden_state
+        with torch.no_grad():
+            outputs = model(input_ids, attention_mask=attention_mask)
+            logits = outputs.logits
+            predictions.append(torch.argmax(logits).item())
 
-        predictions = classifier(new_embeddings)
-        predicted_labels = torch.argmax(predictions, dim=1)
-
-    # Print the predicted labels
-    for text, label in zip(new_texts, predicted_labels):
-        print(f'Text: {text}, Predicted Label: {label.item()}')
+    return predictions
 
 
-def train(texts, labels, batch_size: int = 20, num_epochs: int = 20, model_output_path: str = None):
-    
-    if isinstance(texts, str):
-        texts = [texts]
+if __name__ == "__main__":
+    data = ['This is a positive sentence.', 'I\'m feeling great today.', 'Negative feedback received.',
+            'The product is not good.']
+    labels = ['positive', 'positive', 'negative', 'positive']
 
-    # Create a DataFrame
-    df = pd.DataFrame({'text': texts, 'label': labels})
+    model_path = train(data, labels, num_epochs=1, label_list=['positive', 'negative'])
 
-    # Save DataFrame to CSV file
-    df.to_csv('data.csv', index=False)
+    predictions = predict(['I feel good', "it's so bad"], model_path)
 
-    # Load and preprocess the CSV file
-    data = pd.read_csv('data.csv')
-    texts = data['text'].tolist()
-    labels = data['text'].tolist()
-
-    # Tokenize the texts
-    tokens = tokenizer.batch_encode_plus(
-        texts,
-        truncation=True,
-        padding=True,
-        return_tensors='pt'
-    )
-
-    # Generate the embeddings
-    input_ids = tokens['input_ids'].to('cuda')
-    attention_mask = tokens['attention_mask'].to('cuda')
-    
-    model.train()
-
-    with torch.no_grad():
-        outputs = model(input_ids, attention_mask)
-        embeddings = outputs.last_hidden_state
-    
-    # Training loop
-    total_steps = len(embeddings) // batch_size
-
-    for epoch in range(num_epochs):
-        for step in range(total_steps):
-            start = step * batch_size
-            end = (step + 1) * batch_size
-
-            inputs = embeddings[start:end]
-            targets = torch.tensor(labels[start:end])
-
-            logits = classifier(inputs)
-            loss = criterion(logits, targets)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            if (step + 1) % 1 == 0:
-                print(f'Epoch [{epoch+1}/{num_epochs}], Step [{step+1}/{total_steps}], Loss: {loss.item()}')
-    
-    torch.save(model, 'model.pth')
-
-texts = [
-    "This is a positive sentence.",
-    "I'm feeling great today.",
-    "Negative feedback received.",
-    "The product is not good.",
-]
-
-labels = [1, 1, 0, 0]  # 1 for positive, 0 for negative
-
-train(texts, labels)
-
-
-new_texts = ['Some example text', 'Another example text']
-
-predict(new_texts)
+    print(predictions)

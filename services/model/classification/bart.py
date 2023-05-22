@@ -1,127 +1,84 @@
-from transformers import AutoTokenizer, BartModel
-import pandas as pd
-from torch import nn
 import torch
-from typing import List, Dict, Tuple, Type, Union
+from transformers import BartTokenizer, BartForSequenceClassification, TrainingArguments, Trainer
+from datasets import Dataset
+from services.model.util.trans_util import label2id, id2label
 from services.model import device
 
 
-# Text classification model
-class TextClassifier(nn.Module):
-    def __init__(self, num_classes, hidden_size):
-        super(TextClassifier, self).__init__()
-        self.fc = nn.Linear(hidden_size, num_classes)
-
-    def forward(self, embeddings):
-        logits = self.fc(embeddings)
-        return logits
-
-def load_model(model_id: str):
-    # Load the pre-trained BART model and tokenizer
-    model_id = model_id or 'facebook/bart-base'
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
-    model = BartModel.from_pretrained(model_id).to(device)
+def load_from_pretrained(model_path: str = 'facebook/bart-base',
+                         num_labels: int = 2):
+    tokenizer = BartTokenizer.from_pretrained(model_path)
+    model = BartForSequenceClassification.from_pretrained(model_path,
+                                                          num_labels=num_labels)
     return model, tokenizer
 
-def get_classifier(num_classes: str=1, hidden_size: int = 768):
-    # Initialize and train the text classification model
-    classifier = TextClassifier(num_classes, hidden_size).to(device)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(classifier.parameters(), lr=0.001)
-    return classifier, criterion, optimizer
+
+def train(data,
+          labels,
+          batch_size=10,
+          num_epochs=5,
+          old_model='facebook/bart-base',
+          output_model='test_model',
+          label_list = None,
+          device=device):
+    labels = label2id(labels, label_list = label_list)
+    model, tokenizer = load_from_pretrained(old_model, len(label_list))
+    train_dataset = Dataset.from_dict({'text': data, 'label': labels})
+    train_dataset = train_dataset.map(lambda example: tokenizer(example['text'],
+                                                                padding='max_length',
+                                                                truncation=True,
+                                                                max_length=512),
+                                      batched=True)
+    train_dataset.set_format('torch', columns=['input_ids', 'attention_mask', 'label'])
+
+    training_args = TrainingArguments(
+        output_dir=output_model,
+        overwrite_output_dir=True,
+        num_train_epochs=num_epochs,
+        per_device_train_batch_size=batch_size,
+        logging_dir='./logs',
+        logging_steps=10,
+        disable_tqdm=True,
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=train_dataset
+    )
+
+    trainer.train()
+    tokenizer.save_pretrained(output_model)
+    return output_model
 
 
-# Perform inference on new texts
-def predict(data: list, model_path: str):
-    model, tokenizer = load_model(model_path)
+def predict(data, model_path='test_model', num_label = 2, device=device):
+    model, tokenizer = load_from_pretrained(model_path, num_label)
+    model.to(device)
     model.eval()
-    classifier, criterion, optimizer = get_classifier()
-    # Tokenize and encode the input texts
-    input_ids = []
-    attention_masks = []
+
+    predictions = []
     for text in data:
-        encoding = tokenizer(text, padding='max_length', truncation=True, max_length=512, return_tensors='pt')
-        input_ids.append(encoding['input_ids'].squeeze())
-        attention_masks.append(encoding['attention_mask'].squeeze())
+        encoding = tokenizer(text, return_tensors='pt', padding=True, truncation=True)
+        input_ids = encoding['input_ids'].to(device)
+        attention_mask = encoding['attention_mask'].to(device)
 
-    # Convert lists to tensors
-    input_ids = torch.stack(input_ids).to(device)
-    attention_masks = torch.stack(attention_masks).to(device)
+        with torch.no_grad():
+            outputs = model(input_ids, attention_mask=attention_mask)
+            logits = outputs.logits
+            predictions.append(torch.argmax(logits).item())
 
-    # Forward pass
-    with torch.no_grad():
-        embeddings = model(input_ids=input_ids, attention_mask=attention_masks).last_hidden_state
-        print(embeddings.shape)
-        predictions = classifier(embeddings)
-        predicted_labels = torch.argmax(predictions, dim=1)
+    return predictions
 
-    # Print the predicted labels
-    # for text, label in zip(new_texts, predicted_labels):
-    #     print(f'Text: {text}, Predicted Label: {label.item()}')
-    return predicted_labels
-
-
-def train(texts: list,
-          labels: list,
-          batch_size: int = 20,
-          num_epochs: int = 20,
-          old_model: str = None,
-          new_model: str = 'test_model'):
-    model, tokenizer= load_model(old_model)
-    model.train()
-    classifier, criterion, optimizer = get_classifier()
-    # Tokenize and encode the input texts
-    input_ids = []
-    attention_masks = []
-    for text in texts:
-        encoding = tokenizer(text, padding='max_length', truncation=True, max_length=512, return_tensors='pt')
-        input_ids.append(encoding['input_ids'].squeeze())
-        attention_masks.append(encoding['attention_mask'].squeeze())
-
-    # Convert lists to tensors
-    input_ids = torch.stack(input_ids).to(device)
-    attention_masks = torch.stack(attention_masks).to(device)
-
-    # Forward pass
-    with torch.no_grad():
-        embeddings = model(input_ids=input_ids, attention_mask=attention_masks).last_hidden_state
-        print('*'*30)
-    # Training loop
-    total_steps = len(embeddings) // batch_size
-
-    for epoch in range(num_epochs):
-        for step in range(total_steps):
-            start = step * batch_size
-            end = (step + 1) * batch_size
-
-            inputs = embeddings[start:end]
-            targets = torch.tensor(labels[start:end])
-
-            logits = classifier(inputs)
-            loss = criterion(logits, targets)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-            if (step + 1) % 1 == 0:
-                print(f'Epoch [{epoch+1}/{num_epochs}], Step [{step+1}/{total_steps}], Loss: {loss.item()}')
-    
-    torch.save(model, new_model)
 
 if __name__ == "__main__":
-    texts = [
-        "This is a positive sentence.",
-        "I'm feeling great today.",
-        "Negative feedback received.",
-        "The product is not good.",
-    ]
+    data = ['This is a positive sentence.', 'I\'m feeling great today.', 'Negative feedback received.',
+            'The product is not good.']
+    labels = ['positive', 'positive', 'negative', 'positive']
 
-    labels = [1, 1, 0, 0]  # 1 for positive, 0 for negative
+    model_path = train(data, labels, num_epochs=1, label_list=['positive', 'negative'])
 
-    train(texts, labels)
+    predictions = predict(['I feel good', "it's so bad"], model_path)
 
-
-    new_texts = ['Some example text', 'Another example text']
-
-    # predict(new_texts, 'test_model')
+    print(predictions)
