@@ -27,7 +27,10 @@ from services.config import label_base_path
 from services.config import max_model_num_for_one_label
 from services.config import model_path
 from services.config import project_base_path
+from services.const import CONFIG_MAPPING
+from services.const import CONFIG_NAME_MAPPING
 from services.const import ConfigName
+from services.const import ModelForTrain
 from services.const import TrainingWay
 from services.const import TaskType
 from services.model.AL import one_training_iteration
@@ -162,7 +165,7 @@ def new_project(files: List[UploadFile],
                 name: str = None,
                 init_label: bool = True,
                 config: str = Form(None),
-                config_name: ConfigName = ConfigName.esnli):
+                config_name: ConfigName | None = ConfigName.esnli):
     """upload multi files by user
     file type supported is txt,json,csv,xlsx
 
@@ -177,7 +180,7 @@ def new_project(files: List[UploadFile],
     [{'title': 'Rapunzel', 'content': 'foo bar ....'}]
 
     """
-    config = json.loads(config) if config else config_mapping[config_name.value]
+    config = json.loads(config) if config else CONFIG_MAPPING[CONFIG_NAME_MAPPING[config_name]]
     try:
         res = pd.DataFrame(columns=config['columns'])
         for file in files:
@@ -190,9 +193,10 @@ def new_project(files: List[UploadFile],
     except Exception as e:
         raise HTTPException(status_code=400, detail="'Process data error, please check data content'")
 
-    df = mk.DataFrame.from_pandas(res, index=False)
+    df = mk.DataFrame.from_pandas(res[config['columns']], index=False)
     if 'id' not in config['columns']:
-        config.append('id')
+        config['columns'].append('id')
+        config['id_columns'] = ['id']
     if 'id' not in res.columns:
         df.create_primary_key("id")
     project_data_file = uuid.uuid4().hex
@@ -287,7 +291,7 @@ def get_single_project_data(project_id: int,
             label_column = label_res['config']['label_column']
             res['label_num'] = len(label_data)
             label_data[label_column] = label_data[label_column].astype(int)
-            merged_data = project_data.join(label_data.set_index('id'), on='id')
+            merged_data = project_data.merge(label_data.set_index('id'), how='left', on='id')
             project_data = merged_data.fillna(np.nan).replace([np.nan], [None])
         res['project_data'] = project_data.to_dict('records')
         res['data_num'] = total_num
@@ -308,6 +312,7 @@ def trigger_project_train(project_id: int,
                           background_tasks: BackgroundTasks,
                           response: Response,
                           training_way: TrainingWay = TrainingWay.new,
+                          model: ModelForTrain = None,
                           label_id: int = None):
     """
     get a project data
@@ -340,7 +345,6 @@ def trigger_project_train(project_id: int,
     columns = set(data_columns + label_columns)
     all_labeled_project_data = project_with_label[project_with_label['label'].notnull()]
     data_for_predict = project_with_label[project_with_label['label'].isnull()]
-
 
     if all_labeled_project_data.empty:
       raise HTTPException(status_code=400, detail="no label data for training")

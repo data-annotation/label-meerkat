@@ -1,5 +1,104 @@
-text,label
-This is a positive sentence.,1
-I'm feeling great today.,1
-Negative feedback received.,0
-The product is not good.,0
+sentence,label
+I love dogs!,positive
+The weather is terrible today.,negative
+This movie is amazing!,positive
+I hate being late.,negative
+The food at this restaurant is delicious.,positive
+I am so tired today.,negative
+I had a great time at the party.,positive
+I can't stand my boss.,negative
+The view from this mountain is breathtaking.,positive
+I hate when I forget my phone at home.,negative
+I am grateful for my friends.,positive
+This traffic is driving me crazy.,negative
+I love spending time with my family.,positive
+I can't believe how expensive this dress is.,negative
+I enjoy going for a walk in the park.,positive
+I am so annoyed with my roommate.,negative
+This book is inspiring.,positive
+I am so stressed with work.,negative
+I love playing sports.,positive
+This music is terrible.,negative
+I am thankful for my health.,positive
+I am so bored right now.,negative
+I am excited for my vacation.,positive
+This traffic is making me late.,negative
+I enjoy learning new things.,positive
+I hate listening to my neighbor's music.,negative
+This cake is amazing!,positive
+I can't believe how rude that person was.,negative
+I am so happy for my friend's success.,positive
+I can't stand waiting in line.,negative
+I love watching movies.,positive
+This job is so boring.,negative
+I am so in love with my partner.,positive
+I can't believe how hot it is today.,negative
+I hate when my phone dies.,negative
+This art exhibit is beautiful.,positive
+I am so scared of this rollercoaster.,negative
+I love spending time outdoors.,positive
+I can't believe how crowded this mall is.,negative
+I am so proud of my accomplishments.,positive
+I hate when it rains.,negative
+This concert is amazing!,positive
+I am so annoyed with this traffic jam.,negative
+I love listening to music.,positive
+This movie is terrible.,negative
+I can't stand my coworker.,negative
+The food at this restaurant is terrible.,negative
+I am so grateful for my family.,positive
+This weather is perfect for a picnic.,positive
+I hate being stuck in traffic.,negative
+I am so excited for my friend's wedding.,positive
+I love my new job.,positive
+I can't believe how dirty this room is.,negative
+This rollercoaster is terrifying.,negative
+I enjoy spending time with my grandparents.,positive
+I hate when my internet connection is slow.,negative
+I am so happy with my new apartment.,positive
+This game is so fun to play.,positive
+I can't stand this heat.,negative
+I love trying new food.,positive
+This book is boring.,negative
+I am so motivated to exercise.,positive
+I hate when I have a cold.,negative
+I am so impressed by this art museum.,positive
+This traffic is so frustrating.,negative
+I love spending time with my pets.,positive
+I can't believe how long this line is.,negative
+I am so grateful for my job.,positive
+This weather is too cold for me.,negative
+I hate when my flight is delayed.,negative
+I am so excited for Christmas.,positive
+I love visiting new places.,positive
+This dress is so uncomfortable.,negative
+I enjoy spending time with my friends.,positive
+I can't stand this noise.,negative
+This movie is just okay.,neutral
+I am so bored with this class.,negative
+I hate when I can't find my keys.,negative
+I am so happy for my brother's graduation.,positive
+This traffic is so slow.,negative
+I love pizza.,positive
+I can't believe how old this computer is.,negative
+The food at this restaurant is just okay.,neutral
+I am so thankful for my education.,positive
+This weather is too hot for me.,negative
+I hate when my phone battery dies.,negative
+I am so excited for my vacation to end.,negative
+This hike is too difficult for me.,negative
+I love spending time with my children.,positive
+I can't stand this smell.,negative
+This book is amazing!,positive
+I am so tired of this job.,negative
+I hate when I get stuck in traffic.,negative
+I am so happy to be home.,positive
+This campus is so beautiful.,positive
+I love watching sports.,positive
+I can't believe how expensive this car is.,negative
+The food at this restaurant is fantastic.,positive
+I am so passionate about my hobby.,positive
+This weather is perfect for a beach day.,positive
+I hate when my computer crashes.,negative
+I am so excited for my friend's birthday.,positive
+This music is great!,positive

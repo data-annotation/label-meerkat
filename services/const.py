@@ -28,6 +28,12 @@ class ConfigName(str, Enum):
     fair_tale = 'fair_tale'
 
 
+class ModelForTrain(str, Enum):
+  Bert = 'Bert'
+  Bart = 'Bart'
+  GPT2 = 'BPT2'
+
+
 label_schema = {
     # 'Time flies like an arrow; fruit flies like a banana.'
     TaskType.sequence_tag: [{'s': 0, 'e': 4, 'label': 'aaa'},
@@ -64,6 +70,7 @@ CONFIG_MAPPING = {
     TaskType.sequence_tag: {'columns': ['sentence', 'id'],
                             'data_columns': ['sentence'],
                             'id_columns': ['id'],
+                            'task_type': TaskType.sequence_tag.value,
                             'default_label_config': {'columns': ['label', 'id'],
                                                      'label_column': 'label',
                                                      'labels': ['aaa', 'bbb', 'ccc'],
@@ -71,7 +78,7 @@ CONFIG_MAPPING = {
 
     TaskType.classification: {'columns': ['sentence'],
                               'data_columns': ['sentence'],
-                              'id_columns': ['id'],
+                              'task_type': TaskType.classification.value,
                               'default_label_config': {'columns': ['label', 'id'],
                                                        'label_column': 'label',
                                                        'labels': ['aaa', 'bbb', 'ccc'],
@@ -80,8 +87,34 @@ CONFIG_MAPPING = {
     TaskType.relation: {'columns': ['sentence1', 'sentence2', 'id1', 'id2'],
                         'data_columns': ['sentence1', 'sentence2'],
                         'id_columns': ['id1', 'id2'],
+                        'task_type': TaskType.relation.value,
                         'default_label_config': {'columns': ['label', 'id1', 'id2'],
                                                  'label_columns': ['label'],
                                                  'labels': ['aaa', 'bbb', 'ccc'],
                                                  'id_columns': ['id']}},
-}
+  }
+
+
+
+# classification
+# {
+#     "columns": [
+#         "sentence"
+#     ],
+#     "data_columns": [
+#         "sentence"
+#     ],
+#     "task_type": "classification",
+#     "default_label_config": {
+#         "columns": [
+#             "label",
+#             "id"
+#         ],
+#         "label_column": "label",
+#         "labels": [
+#             "positive",
+#             "negative"
+#         ],
+#         "id_column": "id"
+#     }
+# }
