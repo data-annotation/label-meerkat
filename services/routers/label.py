@@ -212,7 +212,7 @@ def update_label_result(label_id: int,
       raise HTTPException(status_code=404, detail="Label not found")
 
     label_mk_df = mk.read(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
-    label_data = pd.DataFrame(label_data)
+    label_data = pd.DataFrame(label_data, columns=label_res['config']['columns'])
 
     label_full = pd.concat([label_mk_df.to_pandas(index=False),
                             label_data]).drop_duplicates('id',

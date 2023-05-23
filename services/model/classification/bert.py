@@ -7,6 +7,7 @@ from services.model import device
 
 default_model = 'bert-base-uncased'
 
+
 def load_from_pretrained(model_path: str = default_model,
                          num_labels: int = 2):
     tokenizer = BertTokenizer.from_pretrained(model_path)
@@ -23,19 +24,21 @@ def train(data,
           output_model='test_model',
           label_list=None,
           device=device):
-    labels = label2id(labels, label_list = label_list)
+    labels = label2id(labels, label_list=label_list)
     model, tokenizer = load_from_pretrained(old_model, len(label_list))
+    model.to(device)
     train_dataset = Dataset.from_dict({'text': data, 'label': labels})
     train_dataset = train_dataset.map(lambda example: tokenizer(example['text'],
                                                                 padding='max_length',
                                                                 truncation=True,
                                                                 max_length=512),
                                       batched=True)
-    train_dataset.set_format('torch', columns=['input_ids', 'attention_mask', 'label'])
+    train_dataset.set_format('torch',
+                             columns=['input_ids', 'attention_mask', 'label'],
+                             device=device)
 
     training_args = TrainingArguments(
         output_dir=output_model,
-        overwrite_output_dir=True,
         num_train_epochs=num_epochs,
         per_device_train_batch_size=batch_size,
         logging_dir='./logs',
@@ -52,10 +55,15 @@ def train(data,
 
     trainer.train()
     tokenizer.save_pretrained(output_model)
+    model.save_pretrained(output_model)
     return output_model
 
 
-def predict(data, model_path='test_model', num_label = 2, device=device):
+def predict(data,
+            model_path: str = 'test_model',
+            num_label: int = 2,
+            device: str = device):
+
     model, tokenizer = load_from_pretrained(model_path, num_label)
     model.to(device)
     model.eval()

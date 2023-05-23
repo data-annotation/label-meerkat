@@ -390,6 +390,7 @@ def trigger_project_train(project_id: int,
                               model_id=model_id,
                               old_model_id=model_id if not new_model_flag else None)
 
+
     background_tasks.add_task(predict_pipeline,
                               data_predict=data_for_predict,
                               model_id=model_id,
