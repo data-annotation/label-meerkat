@@ -1,0 +1,22 @@
+ {
+     "columns": [
+         "text", "document_id"
+     ],
+     "data_columns": [
+         "sentence"
+     ],
+     "text_name_column": "document_id",
+     "task_type": "classification",
+     "default_label_config": {
+         "columns": [
+             "label",
+             "id"
+         ],
+         "label_column": "label",
+         "labels": [
+             "positive",
+             "negative"
+         ],
+         "id_column": "id"
+     }
+ }

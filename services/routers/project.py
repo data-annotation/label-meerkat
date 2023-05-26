@@ -179,15 +179,50 @@ def new_project(files: List[UploadFile],
     .json file must is a list of dict
     [{'title': 'Rapunzel', 'content': 'foo bar ....'}]
 
+    a config example for FairyTale
+     {
+     "columns": [
+         "text", "document_id"
+     ],
+     "data_columns": [
+         "sentence"
+     ],
+     "text_name_column": "document_id",
+     "task_type": "classification",
+     "default_label_config": {
+         "columns": [
+             "label",
+             "id"
+         ],
+         "label_column": "label",
+         "labels": [
+             "positive",
+             "negative"
+         ],
+         "id_column": "id"
+     }
+ }
     """
     config = json.loads(config) if config else CONFIG_MAPPING[CONFIG_NAME_MAPPING[config_name]]
+    if file2name := config.get('file_name_to_column'):
+      config['columns'].append(file2name)
     try:
         res = pd.DataFrame(columns=config['columns'])
         for file in files:
             if file.filename.endswith('csv'):
-                res = pd.concat([res, pd.read_csv(io.BytesIO(file.file.read()))], ignore_index=True)
+                temp = pd.read_csv(io.BytesIO(file.file.read()))
+                if file2name:
+                    temp.insert(loc=2,
+                                column=file2name,
+                                value=file.filename.split('.')[0])
+                res = pd.concat([res, temp], ignore_index=True)
             elif file.filename.endswith('json'):
-                res = pd.concat([res, pd.DataFrame(json.load(file.file))], ignore_index=True)
+                temp = pd.DataFrame(json.load(file.file))
+                if file2name:
+                    temp.insert(loc=2,
+                                column=file2name,
+                                value=file.filename.split('.')[0])
+                res = pd.concat([res, temp], ignore_index=True)
             else:
                 raise HTTPException(status_code=400, detail="not implement")
     except Exception as e:
@@ -202,7 +237,8 @@ def new_project(files: List[UploadFile],
     project_data_file = uuid.uuid4().hex
     project_name = name or project_data_file
     saved_path = os.path.join(project_base_path, f"{project_data_file}.mk")
-
+    if text_name_column := config.get('text_name_column'):
+      config['text_names'] = res[text_name_column].drop_duplicates().to_list()
     if token is not None:
         with engine.begin() as conn:
             user_res = conn.execute(select(user.c.id).where(user.c.token == token)).fetchone()
@@ -258,16 +294,28 @@ def get_single_project_meta_info(project_id: int,
     return res
 
 
-@router.get("/{project_id}/data")
+@router.post("/{project_id}/data")
 def get_single_project_data(project_id: int,
                             response: Response,
-                            key_word: str = None,
-                            column:str = None,
+                            semantic_key_word: str = None,
+                            semantic_column: str = None,
+                            filter_column: str = None,
+                            filters: list = None,
                             label_id: int = None,
                             size: int = 1000,
                             num: int = 0):
     """
-    get a project data and label data
+      get a project data and label data
+
+    Args:
+      project_id:
+      semantic_key_word: 模糊搜索关键词，以语义相似度进行搜索
+      semantic_column: 模糊搜索数据列
+      filter_column: 精确筛选列
+      filters: 精确筛选条件
+      label_id:
+      size: 分页大小
+      num: 页码，从0开始
 
     """
     project_res = get_project_by_id(project_id)
@@ -293,17 +341,16 @@ def get_single_project_data(project_id: int,
             label_data[label_column] = label_data[label_column].astype(int)
             merged_data = project_data.merge(label_data.set_index('id'), how='left', on='id')
             project_data = merged_data.fillna(np.nan).replace([np.nan], [None])
-        res['project_data'] = project_data.to_dict('records')
-        res['data_num'] = total_num
-        
-        if key_word:
-            kw_embed = encode_model.model.encode(key_word)
-            project_data['embed'] = project_data[column].map(lambda x: encode_model.model.encode(x))
+        if semantic_key_word and semantic_column:
+            kw_embed = encode_model.model.encode(semantic_key_word)
+            project_data['embed'] = project_data[semantic_column].map(lambda x: encode_model.model.encode(x))
             project_data['scores'] = project_data['embed'].map(
                 lambda x: np.dot(x, kw_embed) / (np.linalg.norm(x) * np.linalg.norm(kw_embed))).squeeze()
-            sort_by_keyword_list = project_data.sort_values(by='scores', ascending=False).drop('embed', axis=1).drop('scores', axis=1).to_dict('records')
-            res['project_data'] = sort_by_keyword_list
-
+            project_data = project_data.sort_values(by='scores', ascending=False).drop('embed', axis=1).drop('scores', axis=1)
+        if filter_column and filters:
+            project_data = project_data[project_data[filter_column].isin(filters)]
+        res['project_data'] = project_data.to_dict('records')
+        res['data_num'] = total_num
     return res
 
 
@@ -389,7 +436,6 @@ def trigger_project_train(project_id: int,
                               explanation_column=label_columns[-1],
                               model_id=model_id,
                               old_model_id=model_id if not new_model_flag else None)
-
 
     background_tasks.add_task(predict_pipeline,
                               data_predict=data_for_predict,

@@ -205,7 +205,10 @@ def update_label_result(label_id: int,
                         label_data: dict = Body(embed=True)):
     """
     update a label result
-
+    {
+    'id': [1,2,3,4,5,6],
+    ''
+    }
     """
     label_res = get_label_by_id(label_id=label_id)
     if not label_res:

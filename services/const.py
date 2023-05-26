@@ -25,7 +25,7 @@ class TaskType(str, Enum):
 
 class ConfigName(str, Enum):
     esnli = 'esnli'
-    fair_tale = 'fair_tale'
+    fairt_tale = 'fairy_tale'
 
 
 class ModelForTrain(str, Enum):
@@ -44,7 +44,7 @@ label_schema = {
 
 CONFIG_NAME_MAPPING = {
     ConfigName.esnli: ConfigName.esnli,
-    ConfigName.fair_tale: TaskType.classification
+    ConfigName.fairt_tale: TaskType.classification
 }
 
 CONFIG_MAPPING = {
@@ -58,15 +58,15 @@ CONFIG_MAPPING = {
                                                 'columns': ['label', 'id', 'explanation'],
                                                 'label_column': 'label',
                                                 'id_columns': ['id']}},
-    ConfigName.fair_tale: {'columns': ['sentence', 'id'],
-                           'data_columns': ['sentence'],
-                           'id_columns': ['id'],
-                           'task_type': TaskType.classification.value,
-                           'default_label_config': {'labels': ['positive',
-                                                               'negative'],
-                                                    'columns': ['label', 'id'],
-                                                    'label_column': 'label',
-                                                    'id_columns': ['id']}},
+    ConfigName.fairt_tale: {'columns': ['text', 'document_id'],
+                            'data_columns': ['text'],
+                            'task_type': TaskType.classification.value,
+                            'text_name_column': 'document_id',
+                            'default_label_config': {'labels': ['positive',
+                                                                'negative'],
+                                                     'columns': ['label', 'id'],
+                                                     'label_column': 'label',
+                                                     'id_columns': ['id']}},
     TaskType.sequence_tag: {'columns': ['sentence', 'id'],
                             'data_columns': ['sentence'],
                             'id_columns': ['id'],
@@ -99,11 +99,12 @@ CONFIG_MAPPING = {
 # classification
 # {
 #     "columns": [
-#         "sentence"
+#         "text", "document_id"
 #     ],
 #     "data_columns": [
 #         "sentence"
 #     ],
+#     "text_name_column": "document_id"
 #     "task_type": "classification",
 #     "default_label_config": {
 #         "columns": [
