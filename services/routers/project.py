@@ -179,7 +179,7 @@ def new_project(files: List[UploadFile],
     .json file must is a list of dict
     [{'title': 'Rapunzel', 'content': 'foo bar ....'}]
 
-    a config example for FairyTale
+    a config example for Fairytale:
      {
      "columns": [
          "text", "document_id"

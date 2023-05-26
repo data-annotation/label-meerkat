@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 from transformers import BartTokenizer, BartForSequenceClassification, TrainingArguments, Trainer
 from datasets import Dataset
@@ -13,7 +14,7 @@ def load_from_pretrained(model_path: str = 'facebook/bart-base',
     return model, tokenizer
 
 
-def train(data,
+def train(data: [list, pd.DataFrame],
           labels,
           batch_size=10,
           num_epochs=5,
@@ -55,7 +56,10 @@ def train(data,
     return output_model
 
 
-def predict(data, model_path='test_model', num_label = 2, device=device):
+def predict(data: [list, pd.DataFrame],
+            model_path: str = 'test_model',
+            num_label: int = 2,
+            device: str = device):
     model, tokenizer = load_from_pretrained(model_path, num_label)
     model.to(device)
     model.eval()

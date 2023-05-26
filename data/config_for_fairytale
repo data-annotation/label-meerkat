@@ -15,7 +15,8 @@
          "label_column": "label",
          "labels": [
              "positive",
-             "negative"
+             "negative",
+             "neutral"
          ],
          "id_column": "id"
      }

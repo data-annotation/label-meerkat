@@ -25,7 +25,7 @@ class TaskType(str, Enum):
 
 class ConfigName(str, Enum):
     esnli = 'esnli'
-    fairt_tale = 'fairy_tale'
+    fairy_tale = 'fairy_tale'
 
 
 class ModelForTrain(str, Enum):
@@ -44,7 +44,7 @@ label_schema = {
 
 CONFIG_NAME_MAPPING = {
     ConfigName.esnli: ConfigName.esnli,
-    ConfigName.fairt_tale: TaskType.classification
+    ConfigName.fairy_tale: TaskType.classification
 }
 
 CONFIG_MAPPING = {
@@ -58,11 +58,12 @@ CONFIG_MAPPING = {
                                                 'columns': ['label', 'id', 'explanation'],
                                                 'label_column': 'label',
                                                 'id_columns': ['id']}},
-    ConfigName.fairt_tale: {'columns': ['text', 'document_id'],
+    ConfigName.fairy_tale: {'columns': ['text', 'document_id'],
                             'data_columns': ['text'],
                             'task_type': TaskType.classification.value,
                             'text_name_column': 'document_id',
                             'default_label_config': {'labels': ['positive',
+                                                                'neutral'
                                                                 'negative'],
                                                      'columns': ['label', 'id'],
                                                      'label_column': 'label',
