@@ -1,9 +1,13 @@
+from typing import Union
+
+import pandas as pd
 import torch
 from tqdm.auto import tqdm
 from transformers import T5ForConditionalGeneration
 from transformers import T5Tokenizer
 
 from services.model import device
+import meerkat as mk
 
 
 def prediction_model_accuracy(predictions, references, flag, iteration):
@@ -36,18 +40,6 @@ def prediction_accuracy(predictions, references):
   accuracy = correct / total
   print("total test examples: ", total)
   print("prediction model accuracy: ", accuracy)
-
-
-# def rationale_model_accuracy(predictions, references):
-#   score = total = 0
-#   for groundtruths, prediction in zip(references, predictions):
-#     total += 1
-
-#     res = scorer.score(groundtruths, prediction)['rougeL'].fmeasure
-
-#     score += res
-
-#   print("rationale model ROUGE-L: ", score/len(predictions) )
 
 
 def predict(test_dataset, model_name, model_path):
@@ -101,3 +93,37 @@ def predict(test_dataset, model_name, model_path):
 
   return predictions
 
+
+def save_predictions(predictions: Union[list, pd.DataFrame],
+                     label_column: str = 'label',
+                     save_path: str = None,
+                     merge_by:str = None,
+                     origin_data: Union[list, pd.DataFrame] = None):
+  """
+  save predict result
+  Args:
+    predictions: predict result, list of dict like Dataframe.to_dict('records') or Dataframe
+    label_column
+    save_path: path to save
+    merge_by: the column used for merge prediction and origin data
+    origin_data: list of dict like Dataframe.to_dict('records') or Dataframe
+
+  Returns:
+
+  """
+  # type cast
+  if isinstance(predictions, list):
+    if isinstance(predictions[0], dict):
+      predictions = pd.DataFrame(predictions)
+    else:
+      predictions = pd.DataFrame(predictions, columns=[label_column])
+
+  if origin_data:
+    origin_data = pd.DataFrame(origin_data) if isinstance(origin_data, list) else origin_data
+    if merge_by:
+      merged_data = origin_data.merge(predictions, how='left', on=label_column)
+    else:
+      merged_data = origin_data.assign(**{label_column: predictions.iloc[:, 0]})
+  else:
+    merged_data = predictions
+  mk.from_pandas(merged_data, index=False).write(save_path)

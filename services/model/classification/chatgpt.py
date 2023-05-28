@@ -64,7 +64,9 @@ def predict(data: [pd.DataFrame, list],
   demonstration_a = demonstration_a or demonstration_answer
   label_list = label_list or ['positive', 'neutral', 'negative']
   prompt_for_redict = prompt.format(','.join(label_list))
+
   gpt_result = []
+
   for i in range(iteration_num):
     select_for_gpt_predict = data[i * batch_size:(i + 1) * batch_size]
     if isinstance(data, pd.DataFrame):

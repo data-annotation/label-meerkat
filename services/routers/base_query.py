@@ -28,9 +28,10 @@ router = APIRouter(
 
 @router.post("/predict/{label_id}")
 def predict_unlabeled_data(label_id: int,
-                           model_id: int,
+                           model_id: int = None,
                            data_ids: list = None,
-                           re_predict: bool = False):
+                           re_predict: bool = False,
+                           chatgpt: bool = False):
     """
     predict unlabeled data using trained model
 
@@ -40,6 +41,8 @@ def predict_unlabeled_data(label_id: int,
        like the labeled data result, see /labels/<label_id>
 
     """
+    if model_id is None and chatgpt is False:
+      raise HTTPException(status_code=400, detail="Predict must choice a model")
 
     model_res = get_model_by_id(model_id)
     label_res = get_label_by_id(model_res['label_id'])

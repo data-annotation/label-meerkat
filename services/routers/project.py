@@ -1,3 +1,4 @@
+import importlib
 import io
 import json
 import os
@@ -26,15 +27,19 @@ from sqlalchemy import select
 from services.config import label_base_path
 from services.config import max_model_num_for_one_label
 from services.config import model_path
+from services.config import predict_result_path
 from services.config import project_base_path
 from services.const import CONFIG_MAPPING
 from services.const import CONFIG_NAME_MAPPING
 from services.const import ConfigName
-from services.const import ModelForTrain
+from services.const import ModelForRelation
+from services.const import ModelForClassification
+from services.const import ModelForRelation
 from services.const import TrainingWay
 from services.const import TaskType
 from services.model.AL import one_training_iteration
 from services.model.arch import predict_pipeline
+from services.model.predictor import save_predictions
 from services.orm.tables import create_new_model
 from services.orm.tables import engine
 from services.orm.tables import get_label_by_id
@@ -203,7 +208,7 @@ def new_project(files: List[UploadFile],
      }
  }
     """
-    config = json.loads(config) if config else CONFIG_MAPPING[CONFIG_NAME_MAPPING[config_name]]
+    config = json.loads(config) if config else CONFIG_MAPPING[config_name]
     if file2name := config.get('file_name_to_column'):
       config['columns'].append(file2name)
     try:
@@ -338,7 +343,7 @@ def get_single_project_data(project_id: int,
             label_data = mk.read(label_data_path).to_pandas()
             label_column = label_res['config']['label_column']
             res['label_num'] = len(label_data)
-            label_data[label_column] = label_data[label_column].astype(int)
+            label_data[label_column] = label_data[label_column].astype(label_res['config'].get('label_type', 'str'))
             merged_data = project_data.merge(label_data.set_index('id'), how='left', on='id')
             project_data = merged_data.fillna(np.nan).replace([np.nan], [None])
         if semantic_key_word and semantic_column:
@@ -359,7 +364,7 @@ def trigger_project_train(project_id: int,
                           background_tasks: BackgroundTasks,
                           response: Response,
                           training_way: TrainingWay = TrainingWay.new,
-                          model: ModelForTrain = None,
+                          model: Union[ModelForRelation, ModelForClassification] = None,
                           label_id: int = None):
     """
     get a project data
@@ -384,14 +389,14 @@ def trigger_project_train(project_id: int,
                                       f'{label_res["file_path"]}.mk')).to_pandas()
 
     project_with_label = project_data.merge(label_data, how='left', on='id')
-    # project_with_label = project_data.join(label_data.set_index('id'), on='id')
-    data_columns = project_res['config'].get('columns', [])
-    task_type = project_res['config'].get('columns', TaskType.esnli)
 
-    label_columns = label_res['config'].get('columns', [])
-    columns = set(data_columns + label_columns)
-    all_labeled_project_data = project_with_label[project_with_label['label'].notnull()]
-    data_for_predict = project_with_label[project_with_label['label'].isnull()]
+    data_columns = project_res['config'].get('data_columns', [])
+    id_columns = project_res['config'].get('id_columns', [])
+    label_res_columns = label_res['config'].get('columns', [])
+    label_column = label_res['config'].get('label_column')
+
+    all_labeled_project_data = project_with_label[project_with_label[label_column].notnull()]
+    data_for_predict = project_with_label[project_with_label[label_column].isnull()]
 
     if all_labeled_project_data.empty:
       raise HTTPException(status_code=400, detail="no label data for training")
@@ -429,21 +434,44 @@ def trigger_project_train(project_id: int,
                      .values({"deleted": True}))
 
     model_id = selected_model['model_uuid']
-    background_tasks.add_task(one_training_iteration,
-                              labeled_data=all_labeled_project_data,
-                              column_1=data_columns[0],
-                              column_2=data_columns[1],
-                              explanation_column=label_columns[-1],
-                              model_id=model_id,
-                              old_model_id=model_id if not new_model_flag else None)
+    task_type = project_res['config'].get('task_type', TaskType.esnli)
+    if task_type == TaskType.esnli:
+      background_tasks.add_task(one_training_iteration,
+                                labeled_data=all_labeled_project_data,
+                                column_1=data_columns[0],
+                                column_2=data_columns[1],
+                                explanation_column=label_res_columns[1],
+                                model_id=model_id,
+                                old_model_id=model_id if not new_model_flag else None)
 
-    background_tasks.add_task(predict_pipeline,
-                              data_predict=data_for_predict,
-                              model_id=model_id,
-                              label_id=label_id,
-                              column_1=data_columns[0],
-                              column_2=data_columns[1],
-                              explanation_column=label_columns[-1])
+      background_tasks.add_task(predict_pipeline,
+                                data_predict=data_for_predict,
+                                model_id=model_id,
+                                label_id=label_id,
+                                column_1=data_columns[0],
+                                column_2=data_columns[1],
+                                explanation_column=label_res_columns[1])
+    elif task_type == TaskType.classification:
+      _model = importlib.import_module('services.model.classification.{}'.format(model))
+      last_model = os.path.join(model_path, model_id or '/', 'model')
+      data_column = project_res['config']['data_columns'][0]
+      background_tasks.add_task(_model.train,
+                                data=all_labeled_project_data[data_column].to_list(),
+                                labels=all_labeled_project_data[label_column].to_list(),
+                                label_list=label_res['config'].get('labels', []),
+                                output_model=last_model,
+                                old_model=last_model if not new_model_flag else None)
+      background_tasks.add_task(
+          save_predictions,
+          predictions=_model.predict(data=data_for_predict[data_column].to_list(),
+                                     label_list=label_res['config'].get('labels', []),
+                                     model_path=last_model),
+          label_column=label_column,
+          save_path=os.path.join(predict_result_path,
+                                 str(label_id),
+                                 f'{model_id}.mk'),
+          origin_data=data_for_predict[id_columns]
+      )
 
     return {'model_id': selected_model['id'],
             'model_uuid': selected_model['model_uuid']}

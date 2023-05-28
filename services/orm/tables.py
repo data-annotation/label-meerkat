@@ -91,17 +91,20 @@ model_info = Table(
     Column("data_num", Integer, default=0, comment="模型训练使用的数据量"),
 )
 
-# label_config = Table(
-#     "label_config",
-#     metadata_obj,
-#     Column("id", Integer, Sequence("label_config_id_seq"), primary_key=True),
-#     Column("name", String, nullable=False),
-#     Column("user_id", String, nullable=False),
-#     Column("project_id", Integer, ForeignKey("project.id"), nullable=False),
-#     Column("extra", JSON, server_default=func.now()),
-#     Column("create_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
-#     Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-# )
+training_info = Table(
+    "training_info",
+    metadata_obj,
+    Column("id", Integer, Sequence("training_id_seq"), index=True, primary_key=True),
+    Column("model_id", Integer, ForeignKey("model_info.id"), nullable=False),
+    Column("create_time", DateTime(timezone=True), server_default=func.now()),
+    Column("update_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now()),
+    Column("extra", JSON, default=dict(), nullable=False,
+           server_default=text("'{}'")),
+    Column("status", Integer, default=1, comment="0表示未在训练，1表示正在训练"),
+    Column("iteration", Integer, default=1, comment="模型的迭代次数"),
+    Column("data_num", Integer, default=0, comment="模型训练使用的数据量"),
+)
+
 
 Index("ux_label_result_name_user_id", label_result.c.name, label_result.c.user_id, unique=True)
 

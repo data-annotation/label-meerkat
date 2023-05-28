@@ -28,10 +28,15 @@ class ConfigName(str, Enum):
     fairy_tale = 'fairy_tale'
 
 
-class ModelForTrain(str, Enum):
-  Bert = 'Bert'
-  Bart = 'Bart'
-  GPT2 = 'BPT2'
+class ModelForClassification(str, Enum):
+  bert = 'bert'
+  bart = 'bart'
+  gpt2 = 'gpt2'
+  svm = 'svm'
+
+
+class ModelForRelation(str, Enum):
+  t5 = 't5'
 
 
 label_schema = {
@@ -55,18 +60,20 @@ CONFIG_MAPPING = {
                        'default_label_config': {'labels': ['entailment',
                                                            'neutral',
                                                            'contradiction'],
-                                                'columns': ['label', 'id', 'explanation'],
+                                                'columns': ['label', 'explanation', 'id'],
                                                 'label_column': 'label',
+                                                'label_type': 'int',
                                                 'id_columns': ['id']}},
     ConfigName.fairy_tale: {'columns': ['text', 'document_id'],
                             'data_columns': ['text'],
                             'task_type': TaskType.classification.value,
                             'text_name_column': 'document_id',
                             'default_label_config': {'labels': ['positive',
-                                                                'neutral'
+                                                                'neutral',
                                                                 'negative'],
                                                      'columns': ['label', 'id'],
                                                      'label_column': 'label',
+                                                     'label_type': 'str',
                                                      'id_columns': ['id']}},
     TaskType.sequence_tag: {'columns': ['sentence', 'id'],
                             'data_columns': ['sentence'],
@@ -75,6 +82,7 @@ CONFIG_MAPPING = {
                             'default_label_config': {'columns': ['label', 'id'],
                                                      'label_column': 'label',
                                                      'labels': ['aaa', 'bbb', 'ccc'],
+                                                     'label_type': 'str',
                                                      'id_column': 'id'}},
 
     TaskType.classification: {'columns': ['sentence'],
@@ -83,6 +91,7 @@ CONFIG_MAPPING = {
                               'default_label_config': {'columns': ['label', 'id'],
                                                        'label_column': 'label',
                                                        'labels': ['aaa', 'bbb', 'ccc'],
+                                                       'label_type': 'str',
                                                        'id_column': 'id'}},
 
     TaskType.relation: {'columns': ['sentence1', 'sentence2', 'id1', 'id2'],
@@ -91,6 +100,7 @@ CONFIG_MAPPING = {
                         'task_type': TaskType.relation.value,
                         'default_label_config': {'columns': ['label', 'id1', 'id2'],
                                                  'label_columns': ['label'],
+                                                 'label_type': 'str',
                                                  'labels': ['aaa', 'bbb', 'ccc'],
                                                  'id_columns': ['id']}},
   }

@@ -6,8 +6,11 @@ from services.model.util.trans_util import label2id, id2label
 from services.model import device
 
 
-def load_from_pretrained(model_path: str = 'facebook/bart-base',
+default_model = 'facebook/bart-base'
+
+def load_from_pretrained(model_path: str = None,
                          num_labels: int = 2):
+    model_path = model_path or default_model
     tokenizer = BartTokenizer.from_pretrained(model_path)
     model = BartForSequenceClassification.from_pretrained(model_path,
                                                           num_labels=num_labels)
@@ -18,7 +21,7 @@ def train(data: [list, pd.DataFrame],
           labels,
           batch_size=10,
           num_epochs=5,
-          old_model='facebook/bart-base',
+          old_model=None,
           output_model='test_model',
           label_list=None,
           device=device):
@@ -57,10 +60,11 @@ def train(data: [list, pd.DataFrame],
 
 
 def predict(data: [list, pd.DataFrame],
-            model_path: str = 'test_model',
-            num_label: int = 2,
+            label_list: list,
+            model_path: str = None,
+            save_path: str = None,
             device: str = device):
-    model, tokenizer = load_from_pretrained(model_path, num_label)
+    model, tokenizer = load_from_pretrained(model_path, len(label_list))
     model.to(device)
     model.eval()
 
@@ -75,7 +79,7 @@ def predict(data: [list, pd.DataFrame],
             logits = outputs.logits
             predictions.append(torch.argmax(logits).item())
 
-    return predictions
+    return id2label(predictions, label_list)
 
 
 if __name__ == "__main__":
@@ -83,8 +87,13 @@ if __name__ == "__main__":
             'The product is not good.']
     labels = ['positive', 'positive', 'negative', 'positive']
 
-    model_path = train(data, labels, num_epochs=1, label_list=['positive', 'negative'])
+    model_path = train(data,
+                       labels,
+                       num_epochs=1,
+                       label_list=['positive', 'negative'])
 
-    predictions = predict(['I feel good', "it's so bad"], model_path)
+    predictions = predict(['I feel good', "it's so bad"],
+                          ['positive', 'negative'],
+                          model_path=model_path)
 
     print(predictions)
