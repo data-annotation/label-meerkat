@@ -1,3 +1,4 @@
+from typing import Callable
 from typing import Union
 
 import pandas as pd
@@ -94,7 +95,7 @@ def predict(test_dataset, model_name, model_path):
   return predictions
 
 
-def save_predictions(predictions: Union[list, pd.DataFrame],
+def save_predictions(predictions: Union[list, pd.DataFrame, Callable],
                      label_column: str = 'label',
                      save_path: str = None,
                      merge_by:str = None,
@@ -112,14 +113,17 @@ def save_predictions(predictions: Union[list, pd.DataFrame],
 
   """
   # type cast
+  if callable(predictions):
+    predictions = predictions()
+
   if isinstance(predictions, list):
     if isinstance(predictions[0], dict):
       predictions = pd.DataFrame(predictions)
     else:
       predictions = pd.DataFrame(predictions, columns=[label_column])
 
-  if origin_data:
-    origin_data = pd.DataFrame(origin_data) if isinstance(origin_data, list) else origin_data
+  origin_data = pd.DataFrame(origin_data) if isinstance(origin_data, list) else origin_data
+  if not origin_data.empty:
     if merge_by:
       merged_data = origin_data.merge(predictions, how='left', on=label_column)
     else:

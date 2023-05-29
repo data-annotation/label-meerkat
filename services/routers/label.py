@@ -223,7 +223,6 @@ def update_label_result(label_id: int,
 
     label_full_mk = mk.from_pandas(label_full, index=False)
     label_full_mk.write(os.path.join(label_base_path, f"{label_res['file_path']}.mk"))
-
     return {'label_data_num': len(label_full)}
 
 
@@ -281,9 +280,13 @@ def get_unlabeled_data(label_id: int,
       if len(unlabeled_project_data) < num:
         raise HTTPException(status_code=400, detail="Please label more data or decrease the num of selected data")
       selected_data, remain = similarity_batch_selection(train_data=project_with_label[project_with_label['label'].isnull()][columns],
-                                                                  previous_batch_train_data=project_with_label[project_with_label['label'].notnull()][columns],
-                                                                  criteria='combined',
-                                                                  current_iter=1, num_batch=num, column_1='sentence1', column_2='sentence2')
+                                                         previous_batch_train_data=project_with_label[
+                                                           project_with_label['label'].notnull()][columns],
+                                                         criteria='combined',
+                                                         current_iter=1,
+                                                         num_batch=num,
+                                                         column_1='sentence1',
+                                                         column_2='sentence2')
       unlabeled_project_data = selected_data.remove_columns('__index_level_0__').to_pandas().fillna('null').to_dict('records')
 
     return {'label_id': label_id,

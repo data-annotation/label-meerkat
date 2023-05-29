@@ -53,6 +53,9 @@ from services.orm.tables import project
 from services.orm.tables import user
 from services.routers import encode_model
 
+from functools import partial
+
+
 router = APIRouter(
     prefix="/projects",
     tags=["project"],
@@ -410,7 +413,8 @@ def trigger_project_train(project_id: int,
     with engine.begin() as conn:
       selected_model = create_new_model(label_id=label_id,
                                         model_id=model_id,
-                                        extra={'train_begin': True},
+                                        extra={'train_begin': True,
+                                               'model_type': model},
                                         iteration=label_res['iteration'],
                                         conn=conn)
       # 更新label 和 model 信息
@@ -460,12 +464,14 @@ def trigger_project_train(project_id: int,
                                 labels=all_labeled_project_data[label_column].to_list(),
                                 label_list=label_res['config'].get('labels', []),
                                 output_model=last_model,
-                                old_model=last_model if not new_model_flag else None)
+                                old_model=None if new_model_flag else last_model)
+      pred_func = partial(_model.predict,
+                          data=data_for_predict[data_column].to_list(),
+                          label_list=label_res['config'].get('labels', []),
+                          model_path=last_model)
       background_tasks.add_task(
           save_predictions,
-          predictions=_model.predict(data=data_for_predict[data_column].to_list(),
-                                     label_list=label_res['config'].get('labels', []),
-                                     model_path=last_model),
+          predictions=pred_func,
           label_column=label_column,
           save_path=os.path.join(predict_result_path,
                                  str(label_id),
