@@ -22,4 +22,4 @@ def label2id(labels: list, label_list: list = None):
 
 def id2label(labels: list, label_list: list):
   id_mapping = {i: l for i, l in enumerate(label_list)}
-  return [id_mapping[label] for label in labels]
+  return [id_mapping.get(label, label) for label in labels]
