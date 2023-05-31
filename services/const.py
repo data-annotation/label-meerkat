@@ -31,7 +31,7 @@ class ConfigName(str, Enum):
 class ModelForClassification(str, Enum):
   bert = 'bert'
   bart = 'bart'
-  gpt2 = 'gpt2'
+  # gpt2 = 'gpt2'
   svm = 'svm'
 
 

@@ -26,3 +26,9 @@ learning_rate = 1e-4
 per_device_batch_size = 10
 
 max_model_num_for_one_label = 2
+
+
+available_models = {
+  'classification': ['bert', 'bart', 'svm'],
+  'relation': ['t5'],
+}

@@ -293,3 +293,4 @@ def get_unlabeled_data(label_id: int,
             'project_data': unlabeled_project_data,
             'data_num': len(unlabeled_project_data)}
 
+
