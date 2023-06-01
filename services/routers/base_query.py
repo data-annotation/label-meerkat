@@ -36,11 +36,14 @@ def predict_unlabeled_data(label_id: int,
                            model_id: int = None,
                            data_ids: list = None,
                            re_predict: bool = False,
-                           chatgpt: bool = False):
+                           chatgpt: bool = False,
+                           chatgpt_prompt: str = None):
     """
     predict unlabeled data using trained model
 
     if model id is None use the recent update model to predict
+
+    If you need to use ChatGPT for predictions, please configure the environment variable openai_api_key first.
 
     response:
        like the labeled data result, see /labels/<label_id>
@@ -70,6 +73,7 @@ def predict_unlabeled_data(label_id: int,
     label_column = label_res['config'].get('label_column')
     unlabeled_data = merge_data[merge_data[label_column].isnull()]
     model_id = model_res['model_uuid']
+    task_type = project_res['config'].get('task_type', TaskType.esnli)
 
     if not re_predict:
       last_predict_res = mk.read(os.path.join(predict_result_path,
@@ -82,8 +86,14 @@ def predict_unlabeled_data(label_id: int,
                      .fillna(np.nan)
                      .replace([np.nan], [None])
                      .to_dict('records'))
+    elif chatgpt:
+      _model = importlib.import_module(f'services.model.{task_type}.chatgpt')
+      predictions = _model.predict(data=unlabeled_data[data_columns+id_columns].to_list(),
+                                   label_list=label_res['config'].get('labels', []),
+                                   column_for_predict=data_columns[0],
+                                   id_column=id_columns[0],
+                                   model_path=os.path.join(model_path, model_id or '/', 'model'))
     else:
-      task_type = project_res['config'].get('task_type', TaskType.esnli)
       if data_ids:
         unlabeled_data = unlabeled_data[unlabeled_data['id'].isin(data_ids)]
       if task_type == TaskType.esnli:
@@ -98,8 +108,7 @@ def predict_unlabeled_data(label_id: int,
         model = model_res['extra'].get('model_type', 'bart')
         _model = importlib.import_module('services.model.classification.{}'.format(model))
         last_model = os.path.join(model_path, model_id or '/', 'model')
-        data_column = project_res['config']['data_columns'][0]
-        predictions = _model.predict(data=unlabeled_data[data_column].to_list(),
+        predictions = _model.predict(data=unlabeled_data[data_columns].to_list(),
                                      label_list=label_res['config'].get('labels', []),
                                      model_path=os.path.join(model_path, model_id or '/', 'model'))
         save_predictions(predictions=predictions,
