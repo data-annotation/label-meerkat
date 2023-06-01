@@ -63,6 +63,7 @@ def predict(data: [pd.DataFrame, list],
   demonstration_q = demonstration_q or demonstration_question
   demonstration_a = demonstration_a or demonstration_answer
   label_list = label_list or ['positive', 'neutral', 'negative']
+  prompt = prompt or system_prompt
   prompt_for_redict = prompt.format(','.join(label_list))
 
   gpt_result = []
