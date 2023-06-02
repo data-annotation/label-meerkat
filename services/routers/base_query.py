@@ -73,7 +73,7 @@ def predict_unlabeled_data(label_id: int,
     label_column = label_res['config'].get('label_column')
     unlabeled_data = merge_data[merge_data[label_column].isnull()]
     model_id = model_res['model_uuid']
-    task_type = project_res['config'].get('task_type', TaskType.esnli)
+    task_type = project_res['config'].get('task_type', TaskType.relation)
 
     if not re_predict:
       last_predict_res = mk.read(os.path.join(predict_result_path,
@@ -96,7 +96,7 @@ def predict_unlabeled_data(label_id: int,
     else:
       if data_ids:
         unlabeled_data = unlabeled_data[unlabeled_data['id'].isin(data_ids)]
-      if task_type == TaskType.esnli:
+      if task_type == TaskType.relation:
         _, _, predict_res = predict_pipeline(unlabeled_data,
                                              model_id=model_id,
                                              label_id=label_id,

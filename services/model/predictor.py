@@ -125,7 +125,7 @@ def save_predictions(predictions: Union[list, pd.DataFrame, Callable],
   origin_data = pd.DataFrame(origin_data) if isinstance(origin_data, list) else origin_data
   if not origin_data.empty:
     if merge_by:
-      merged_data = origin_data.merge(predictions, how='left', on=label_column)
+      merged_data = origin_data.merge(predictions, how='left', on=merge_by)
     else:
       merged_data = origin_data.assign(**{label_column: predictions.iloc[:, 0]})
   else:
