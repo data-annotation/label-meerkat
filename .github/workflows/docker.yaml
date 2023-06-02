@@ -42,6 +42,7 @@ jobs:
             PYPI=https://pypi.org/simple
             DEBIAN=http://deb.debian.org
           tags: |
+            ghcr.io/${{ env.user_lc }}/label-meerkat:latest
             ghcr.io/${{ env.user_lc }}/label-meerkat:multitask
             ghcr.io/${{ env.user_lc }}/label-meerkat:${{ github.sha }}
             ghcr.io/${{ env.user_lc }}/label-meerkat:${{ github.ref_name }}
