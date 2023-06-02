@@ -56,7 +56,7 @@ CONFIG_MAPPING = {
     ConfigName.esnli: {'columns': ['sentence1', 'sentence2', 'id'],
                        'data_columns': ['sentence1', 'sentence2'],
                        'id_columns': ['id'],
-                       'task_type': TaskType.relation.value,
+                       'task_type': TaskType.esnli.value,
                        'default_label_config': {'labels': ['entailment',
                                                            'neutral',
                                                            'contradiction'],

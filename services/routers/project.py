@@ -438,8 +438,8 @@ def trigger_project_train(project_id: int,
                      .values({"deleted": True}))
 
     model_id = selected_model['model_uuid']
-    task_type = project_res['config'].get('task_type', TaskType.relation)
-    if task_type == TaskType.relation:
+    task_type = project_res['config'].get('task_type', TaskType.esnli)
+    if task_type == TaskType.esnli:
       background_tasks.add_task(one_training_iteration,
                                 labeled_data=all_labeled_project_data,
                                 column_1=data_columns[0],

@@ -96,7 +96,7 @@ def predict_unlabeled_data(label_id: int,
     else:
       if data_ids:
         unlabeled_data = unlabeled_data[unlabeled_data['id'].isin(data_ids)]
-      if task_type == TaskType.relation:
+      if task_type == TaskType.esnli:
         _, _, predict_res = predict_pipeline(unlabeled_data,
                                              model_id=model_id,
                                              label_id=label_id,
@@ -107,7 +107,6 @@ def predict_unlabeled_data(label_id: int,
       elif task_type == TaskType.classification:
         model = model_res['extra'].get('model_type', 'bart')
         _model = importlib.import_module('services.model.classification.{}'.format(model))
-        last_model = os.path.join(model_path, model_id or '/', 'model')
         predictions = _model.predict(data=unlabeled_data[data_columns].to_list(),
                                      label_list=label_res['config'].get('labels', []),
                                      model_path=os.path.join(model_path, model_id or '/', 'model'))

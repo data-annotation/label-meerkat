@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from fastapi import APIRouter
 from fastapi import Form
+from fastapi import HTTPException
 from fastapi import Response
 from fastapi import UploadFile
 from sentence_splitter import SentenceSplitter
@@ -199,3 +200,17 @@ def upload_file_and_process(project_id: int, search_words, response: Response):
     return sort_by_keyword_df.head(10).to_pandas().to_dict('records')
 
 
+@router.post("/parsing")
+def parsing_upload_file_data_column(file: UploadFile):
+    """
+    parsing upload file data column for frontend use
+    """
+    if file.filename.endswith('.csv'):
+        res = pd.read_csv(io.BytesIO(file.file.read()))
+    elif file.filename.endswith('xlsx'):
+        res = pd.read_excel(file.file.read())
+    elif file.filename.endswith('json'):
+        res = pd.DataFrame(json.load(file.file))
+    else:
+        raise HTTPException(status_code=400, detail="Not Implemented")
+    return list(res.columns)
