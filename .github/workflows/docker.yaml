@@ -44,7 +44,7 @@ jobs:
           tags: |
             ghcr.io/${{ env.user_lc }}/label-meerkat:multitask
             ghcr.io/${{ env.user_lc }}/label-meerkat:${{ github.sha }}
-            ghcr.io/${{ env.user_lc }}/label-meerkat:${{ github.ref }}
+            ghcr.io/${{ env.user_lc }}/label-meerkat:${{ github.ref_name }}
       - name: Trigger CD
         run: |
           curl -X POST ${{ secrets.CD_WEBHOOK_URL }}
