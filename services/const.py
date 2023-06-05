@@ -39,6 +39,11 @@ class ModelForRelation(str, Enum):
   t5 = 't5'
 
 
+class UnlabeledDataSelectWay(str, Enum):
+  combined = 'combined'
+  even = 'even'
+
+
 label_schema = {
     # 'Time flies like an arrow; fruit flies like a banana.'
     TaskType.sequence_tag: [{'s': 0, 'e': 4, 'label': 'aaa'},
