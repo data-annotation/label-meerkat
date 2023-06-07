@@ -1,5 +1,5 @@
 import random
-from typing import Union
+from typing import Tuple, Union
 
 import datasets
 import pandas as pd
@@ -117,7 +117,7 @@ def similarity_batch_selection_v2(for_select_data: Union[list, pd.DataFrame, Dat
                                   labeled_data: Union[list, pd.DataFrame, Dataset, dict] = None,
                                   labeled_column: list = None,
                                   num_batch: int = 20,
-                                  select_way: str = UnlabeledDataSelectWay.combined) -> (datasets.Dataset, datasets.Dataset):
+                                  select_way: str = UnlabeledDataSelectWay.combined) -> Tuple[datasets.Dataset, datasets.Dataset]:
   """
   Args:
     for_select_data: 要选择的数据

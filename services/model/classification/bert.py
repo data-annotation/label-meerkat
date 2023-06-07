@@ -34,8 +34,7 @@ def train(data,
                                                                 max_length=512),
                                       batched=True)
     train_dataset.set_format('torch',
-                             columns=['input_ids', 'attention_mask', 'label'],
-                             device=device)
+                             columns=['input_ids', 'attention_mask', 'label'])
 
     training_args = TrainingArguments(
         output_dir=output_model,
@@ -52,6 +51,12 @@ def train(data,
         train_dataset=train_dataset,
         eval_dataset=train_dataset
     )
+
+    device = trainer.model.device
+    if device.type == 'cuda':
+        print("##### Trainer is using GPU for training. #####")
+    else:
+        print("##### Trainer is using CPU for training. #####")
 
     trainer.train()
     tokenizer.save_pretrained(output_model)

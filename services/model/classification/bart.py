@@ -1,3 +1,4 @@
+from typing import Union
 import pandas as pd
 import torch
 from transformers import BartTokenizer, BartForSequenceClassification, TrainingArguments, Trainer
@@ -17,7 +18,7 @@ def load_from_pretrained(model_path: str = None,
     return model, tokenizer
 
 
-def train(data: [list, pd.DataFrame],
+def train(data: Union[list, pd.DataFrame],
           labels,
           batch_size=10,
           num_epochs=5,
@@ -34,8 +35,7 @@ def train(data: [list, pd.DataFrame],
                                                                 max_length=512),
                                       batched=True)
     train_dataset.set_format('torch',
-                             columns=['input_ids', 'attention_mask', 'label'],
-                             device=device)
+                             columns=['input_ids', 'attention_mask', 'label'])
 
     training_args = TrainingArguments(
         output_dir=output_model,
@@ -53,6 +53,12 @@ def train(data: [list, pd.DataFrame],
         eval_dataset=train_dataset
     )
 
+    device = trainer.model.device
+    if device.type == 'cuda':
+        print("##### Trainer is using GPU for training. #####")
+    else:
+        print("##### Trainer is using CPU for training. #####")
+
     trainer.train()
     tokenizer.save_pretrained(output_model)
     model.save_pretrained(output_model)
@@ -62,7 +68,6 @@ def train(data: [list, pd.DataFrame],
 def predict(data: [list, pd.DataFrame],
             label_list: list,
             model_path: str = None,
-            save_path: str = None,
             device: str = device):
     model, tokenizer = load_from_pretrained(model_path, len(label_list))
     model.to(device)

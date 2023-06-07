@@ -124,6 +124,12 @@ venv.bak/
 all-MiniLM-L6-v2/
 sentence-transformers/
 
+model_data/
+rationale_model/
+meerkat/
+.vscode/
+.history/
+
 # test
 story_sentence_processed_df_embed_trans.mk
 test.py
