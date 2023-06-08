@@ -1,19 +1,22 @@
 from typing import Union
 import pandas as pd
 import torch
-from transformers import BertTokenizer, BertForSequenceClassification, TrainingArguments, Trainer
+from transformers import BartTokenizer, BartForSequenceClassification, TrainingArguments, Trainer
 from datasets import Dataset
 from services.model.util.trans_util import label2id, id2label
 from services.model import device
+from transformers import pipeline
 
-init_model = '../bert-base-uncased'
+default_model = '../bart-base'
 
 def load_from_pretrained(model_path: str = None,
-                         num_labels: int = 2):
-    model_path = model_path or init_model
-    tokenizer = BertTokenizer.from_pretrained(model_path)
-    model = BertForSequenceClassification.from_pretrained(model_path,
-                                                          num_labels=num_labels)
+                         label_list: int = None):
+    model_path = model_path or default_model
+    tokenizer = BartTokenizer.from_pretrained(model_path)
+    model = BartForSequenceClassification.from_pretrained(model_path,
+                                                          num_labels=len(label_list),
+                                                          id2label={i: l for i, l in enumerate(label_list)}, 
+                                                          label2id={l: i for i, l in enumerate(label_list)})
     return model, tokenizer
 
 def train(data, 
@@ -39,7 +42,7 @@ def train(data,
         训练完成后保存的模型路径
     """
     labels = label2id(labels, label_list=label_list)
-    model, tokenizer = load_from_pretrained(old_model, len(label_list))
+    model, tokenizer = load_from_pretrained(old_model, label_list)
     train_dataset = Dataset.from_dict({'text': data, 'label': labels})
 
     train_dataset = train_dataset.map(lambda example: tokenizer(example['text'],
@@ -83,10 +86,9 @@ def predict(data: Union[list, pd.DataFrame],
             label_list: list,
             model_path: str = None,
             device: str = device):
-    model, tokenizer = load_from_pretrained(model_path, len(label_list))
+    model, tokenizer = load_from_pretrained(model_path, label_list)
     model.to(device)
     model.eval()
-
     predictions = []
     for text in data:
         encoding = tokenizer.batch_encode_plus(text,  add_special_tokens=True, return_tensors='pt', padding=True, truncation=True)
@@ -114,7 +116,7 @@ if __name__ == "__main__":
 
     model_path = train(train_data,
                        train_labels,
-                       num_epochs=10,
+                       num_epochs=100,
                        label_list=label_list)
 
     predictions = predict(train_data,

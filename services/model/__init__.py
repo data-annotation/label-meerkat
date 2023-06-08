@@ -23,7 +23,7 @@ tokenizer = Tokenizer()
 # tokenizer = T5Tokenizer.from_pretrained('t5-base')
 # tokenizer.add_special_tokens({'sep_token': '<sep>'})
 
-model_SentenceTransformer = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2',
+model_SentenceTransformer = SentenceTransformer(SentenceTransformer_PATH,
                                                 cache_folder=SentenceTransformer_PATH)
 
 

@@ -122,6 +122,8 @@ venv.bak/
 
 # model
 all-MiniLM-L6-v2/
+bart-base/
+bert-base-uncased/
 sentence-transformers/
 
 model_data/
