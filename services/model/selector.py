@@ -13,6 +13,7 @@ from services.model import device
 from services.model.util.trans_util import trans_data_to_dataset
 from services.model import model_SentenceTransformer
 
+
 def random_batch_selection(train_dataset, num_batch):
   sampled_idx = random.sample( list( range(len(train_dataset)) ), num_batch )
 
@@ -185,5 +186,7 @@ if __name__ == "__main__":
   label_data = project_with_label[project_with_label['label'].notnull()]
   for_select = project_with_label[project_with_label['label'].isnull()]
   selected_data, remain_data = similarity_batch_selection_v2(for_select_data=for_select,
-                                                             similarity_by=['sentence1', 'sentence2'])
+                                                             labeled_data=label_data,
+                                                             similarity_by=['sentence1', 'sentence2'],
+                                                             labeled_column=['explanation'])
   print(selected_data, remain_data)
