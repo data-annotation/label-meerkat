@@ -132,6 +132,7 @@ def project_list():
                                        project.c.name,
                                        project.c.create_time,
                                        project.c.update_time,
+                                       project.c.config,
                                        func.json_group_array(
                                            func.json_object(
                                                'label_id', label_result.c.id,

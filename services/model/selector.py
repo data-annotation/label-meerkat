@@ -135,6 +135,8 @@ def similarity_batch_selection_v2(for_select_data: Union[list, pd.DataFrame, Dat
   labeled_column = labeled_column or similarity_by
   for_select_data = trans_data_to_dataset(for_select_data)
   labeled_data = trans_data_to_dataset(labeled_data)
+  if len(for_select_data) <= num_batch:
+    return for_select_data, Dataset.from_pandas(pd.DataFrame(columns=['text', 'labels']))
 
   for_select_data_embed = model_SentenceTransformer.encode([' '.join([i[k] for k in similarity_by]) for i in for_select_data],
                                                            convert_to_tensor=True).to(device)

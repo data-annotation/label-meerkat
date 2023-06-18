@@ -135,3 +135,5 @@ meerkat/
 # test
 story_sentence_processed_df_embed_trans.mk
 test.py
+
+services/test_model/
